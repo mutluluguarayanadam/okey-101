@@ -259,6 +259,34 @@ io.on('connection', socket => {
     cb({ melds: sol.melds.map(m => m.map(t => t.id)), score: sol.score, pairs: pairs.map(p => p.map(t => t.id)) });
   });
 
+  // Oyundan / odadan isteyerek çıkış: oyunda yerine kalıcı olarak bot geçer
+  socket.on('leave', () => {
+    const room = roomOf(socket);
+    socket.data.code = null;
+    if (!room) return socket.emit('leftRoom');
+    const i = socket.data.seat;
+    const s = room.seats[i];
+    if (!s || s.socketId !== socket.id) return socket.emit('leftRoom');
+    const wasHost = s.token === room.hostToken;
+    if (!room.game) {
+      Object.assign(s, emptySeat());
+    } else {
+      room.game.addLog(`${s.name} oyundan çıktı, yerine bot oynuyor`);
+      Object.assign(s, { token: null, isBot: true, connected: true, socketId: null });
+    }
+    if (wasHost) {
+      const next = room.seats.find(x => x.token && x.connected);
+      if (next) room.hostToken = next.token;
+    }
+    socket.emit('leftRoom');
+    if (!room.seats.some(x => x.token)) {
+      clearTimeout(room.timer);
+      rooms.delete(room.code);
+      return;
+    }
+    update(room);
+  });
+
   socket.on('disconnect', () => {
     const room = roomOf(socket);
     if (!room) return;

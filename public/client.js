@@ -40,6 +40,15 @@ $('#btnStart').onclick = () => socket.emit('start');
 $('#btnCopy').onclick = () => { navigator.clipboard?.writeText($('#wLink').textContent); toast('Bağlantı kopyalandı'); };
 $('#btnScores').onclick = () => { scoresOpen = true; renderModal(); };
 $('#btnSound').onclick = () => { muted = !muted; localStorage.setItem('okey_mute', muted ? '1' : '0'); soundIcon(); };
+const touch = matchMedia('(pointer: coarse)').matches;
+let fsTried = false;
+$('#game').addEventListener('pointerdown', () => {
+  if (!touch || fsTried || document.fullscreenElement || !document.documentElement.requestFullscreen) return;
+  fsTried = true;
+  document.documentElement.requestFullscreen()
+    .then(() => screen.orientation?.lock?.('landscape').catch(() => {}))
+    .catch(() => {});
+}, { capture: true });
 $('#btnFull').onclick = async () => {
   try {
     if (document.fullscreenElement) await document.exitFullscreen();
@@ -62,7 +71,30 @@ socket.on('joined', ({ code }) => {
   localStorage.setItem('okey_room', code);
   history.replaceState(null, '', '?oda=' + code);
 });
-socket.on('leftRoom', () => localStorage.removeItem('okey_room'));
+socket.on('leftRoom', () => {
+  localStorage.removeItem('okey_room');
+  S = null;
+  handKey = null;
+  scoresOpen = false;
+  history.replaceState(null, '', '/');
+  $('#code').value = '';
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  render();
+});
+
+function confirmLeave() {
+  const inGame = S && !S.lobby && !S.over;
+  $('#modalBody').innerHTML = `<h2>${inGame ? 'Oyundan çık' : 'Odadan çık'}</h2>
+    <p>${inGame ? 'Oyundan çıkarsan yerine bot oynamaya devam eder. Aynı bağlantıyla geri girersen, bot koltuğuna oturabilirsin.' : 'Odadan çıkmak istediğine emin misin?'}</p>
+    <div class="row" style="margin-top:14px"><button class="grow" id="btnStay">Vazgeç</button><button class="danger grow" id="btnLeaveOk">Çık</button></div>`;
+  $('#modal').classList.remove('hidden');
+  leaving = true;
+  $('#btnStay').onclick = () => { leaving = false; $('#modal').classList.add('hidden'); render(); };
+  $('#btnLeaveOk').onclick = () => { leaving = false; $('#modal').classList.add('hidden'); socket.emit('leave'); };
+}
+let leaving = false;
+$('#btnLeave').onclick = confirmLeave;
+$('#btnLeaveRoom').onclick = confirmLeave;
 socket.on('kicked', () => { toast('Bu koltuğa başka bir sekmeden bağlanıldı'); S = null; render(); });
 socket.on('err', m => toast(m));
 socket.on('state', st => {
@@ -104,7 +136,28 @@ function turnAlert() {
 
 function show(id) {
   ['lobby', 'waiting', 'game'].forEach(x => $('#' + x).classList.toggle('hidden', x !== id));
+  document.body.classList.toggle('ingame', id === 'game');
+  if (id === 'game') fitLayout();
 }
+
+// Taş boyunu ekranın gerçek ölçüsüne göre hesapla (her telefonda ıstaka tam sığsın)
+function fitLayout() {
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const short = vw > vh && vh < 560;
+  document.body.classList.toggle('short', short);
+  const gap = vw < 700 ? 2 : 3;
+  const bar = short ? Math.round(Math.min(150, Math.max(104, vw * 0.17))) : 0;
+  const byW = (vw - bar - (short ? 30 : 34) - 14 * gap) / 15;
+  const byH = short ? (vh * 0.34) / 2.9 : vh * 0.125;
+  const tw = Math.max(16, Math.min(54, byW, byH));
+  const root = document.documentElement.style;
+  root.setProperty('--tw', tw.toFixed(1) + 'px');
+  root.setProperty('--gap', gap + 'px');
+  root.setProperty('--bar', bar + 'px');
+  root.setProperty('--sw', Math.max(14, Math.min(30, tw * (short ? 0.62 : 0.68))).toFixed(1) + 'px');
+}
+window.addEventListener('resize', () => { if (S && !S.lobby) fitLayout(); });
+window.addEventListener('orientationchange', () => setTimeout(fitLayout, 250));
 
 function render() {
   if (!S) { show('lobby'); return; }
@@ -490,10 +543,10 @@ function renderMe() {
   const hs = $('#handScore');
   if (!m.opened) {
     const b = S.barrier;
-    hs.innerHTML = `Seri <b class="${ev.score >= b.per ? 'ok' : ''}">${ev.score}</b>/${b.per} · Çift <b class="${ev.pairs.length >= b.cift ? 'ok' : ''}">${ev.pairs.length}</b>/${b.cift}`;
+    hs.innerHTML = `<span>Seri <b class="${ev.score >= b.per ? 'ok' : ''}">${ev.score}</b>/${b.per}</span><span>Çift <b class="${ev.pairs.length >= b.cift ? 'ok' : ''}">${ev.pairs.length}</b>/${b.cift}</span>`;
   } else {
     const left = S.hand.reduce((s, t) => s + Rules.tilePoints(t, S.okey), 0);
-    hs.innerHTML = `Elde kalan <b>${left}</b> puan`;
+    hs.innerHTML = `<span>Elde kalan <b>${left}</b></span>`;
   }
 }
 
@@ -703,6 +756,7 @@ setInterval(() => {
 // ---------- Puan tablosu / el sonu ----------
 function renderModal() {
   const modal = $('#modal');
+  if (leaving) return;
   const ended = S && !S.lobby && S.phase === 'ended' && S.result;
   if (!S || S.lobby || (!ended && !scoresOpen)) { modal.classList.add('hidden'); return; }
   modal.classList.remove('hidden');
@@ -732,6 +786,7 @@ function renderModal() {
   if (!ended) html += `<details><summary class="muted">Oyun akışı</summary><ul class="loglist">${S.log.slice().reverse().map(l => `<li>${esc(l)}</li>`).join('')}</ul></details>`;
   html += '<div class="row" style="margin-top:14px">';
   if (S.over && S.isHost) html += '<button class="primary grow" id="btnNew">Yeni oyun</button>';
+  if (S.over) html += '<button class="grow" id="btnMenu">Ana menü</button>';
   if (!ended) html += '<button class="grow" id="btnClose">Kapat</button>';
   html += '</div>';
   $('#modalBody').innerHTML = html;
@@ -751,6 +806,8 @@ function renderModal() {
   }
   const nb = $('#btnNew');
   if (nb) nb.onclick = () => socket.emit('newGame');
+  const mb = $('#btnMenu');
+  if (mb) mb.onclick = () => socket.emit('leave');
   const cb = $('#btnClose');
   if (cb) cb.onclick = () => { scoresOpen = false; renderModal(); };
 }
