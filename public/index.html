@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1a120b">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>101 Okey</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <section id="lobby" class="screen">
+    <div class="panel">
+      <h1 class="logo"><span class="lt r">1</span><span class="lt k">0</span><span class="lt b">1</span> Okey</h1>
+      <label class="field">Adın<input id="name" maxlength="16" autocomplete="nickname"></label>
+      <button id="btnCreate" class="primary wide">Oda kur</button>
+      <p class="or">ya da arkadaşının odasına katıl</p>
+      <div class="row">
+        <input id="code" placeholder="Oda kodu" maxlength="5" class="grow code-input">
+        <button id="btnJoin">Katıl</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="waiting" class="screen hidden">
+    <div class="panel roompanel">
+      <h2>Oda <span id="wCode" class="code"></span></h2>
+      <div class="linkbox"><span id="wLink"></span><button id="btnCopy" class="small">Kopyala</button></div>
+      <div class="minitable" id="wTable"></div>
+      <p class="muted center-text" id="wNote"></p>
+      <div id="wSettings" class="settings"></div>
+      <button id="btnStart" class="primary wide">Oyunu başlat</button>
+    </div>
+  </section>
+
+  <section id="game" class="screen hidden">
+    <header class="topbar">
+      <div class="roominfo"><b id="gCode"></b><span id="gHand"></span><span id="gTeam" class="teamscore"></span></div>
+      <div id="status"></div>
+      <div class="tbtns">
+        <button id="btnChat" class="icon" title="Sohbet">💬</button>
+        <button id="btnSound" class="icon" title="Ses">🔊</button>
+        <button id="btnFull" class="icon" title="Tam ekran">⛶</button>
+        <button id="btnScores" class="icon" title="Puanlar ve oyun akışı">🏆</button>
+      </div>
+    </header>
+
+    <div class="arena">
+      <div class="table">
+        <div class="player p-top" id="pos2"></div>
+        <div class="player p-left" id="pos3"></div>
+        <div class="player p-right" id="pos1"></div>
+        <div class="corner c-tl" id="corner2"></div>
+        <div class="corner c-tr" id="corner1"></div>
+        <div class="corner c-bl" id="corner3"></div>
+        <div class="corner c-br" id="corner0"></div>
+        <div class="center">
+          <div class="stock">
+            <div class="stack"><div id="indicator"></div><small>Gösterge</small></div>
+            <button id="pile" class="pile" title="Yığından çek"><span id="pileCount"></span></button>
+            <div class="stack"><div id="okeyTile"></div><small>Okey</small></div>
+          </div>
+          <div id="melds" class="melds"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="chatPanel" class="chatpanel hidden">
+      <div id="chatLog" class="chatlog"></div>
+      <div class="quick" id="quick"></div>
+      <form id="chatForm" class="chatform"><input id="chatInput" maxlength="80" placeholder="Mesaj yaz" autocomplete="off"><button class="small">Gönder</button></form>
+    </div>
+    <div class="dock">
+      <div id="rotateTip" class="rotatetip">Telefonu yan çevirirsen taşlar büyür <button id="btnTipClose" class="icon">✕</button></div>
+      <div class="dockbar">
+        <div id="meChip" class="mechip"></div>
+        <div id="handScore" class="handscore"></div>
+        <div class="actions">
+          <button data-act="seri">Seri diz</button>
+          <button data-act="cift">Çift diz</button>
+          <button data-act="undo" class="warn">Geri koy (101 ceza)</button>
+          <button data-act="open" class="primary">Elini aç</button>
+        </div>
+      </div>
+      <div id="rack" class="rack"></div>
+      <p class="hint" id="hint"></p>
+    </div>
+  </section>
+
+  <div id="modal" class="modal hidden"><div class="panel" id="modalBody"></div></div>
+  <div id="toast" class="toast"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="rules.js"></script>
+  <script src="client.js"></script>
+</body>
+</html>
