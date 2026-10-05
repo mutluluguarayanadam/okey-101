@@ -132,7 +132,17 @@ function sit(room, i, socket, name, token) {
 
 const roomOf = socket => rooms.get(socket.data.code);
 
+// Beklenmedik bir hata sunucuyu (ve bütün odaları) çökertmesin
+process.on('uncaughtException', e => console.error('Yakalanmamış hata:', e));
+process.on('unhandledRejection', e => console.error('Yakalanmamış söz:', e));
+
 io.on('connection', socket => {
+  // Her olay işleyicisini hataya karşı koru
+  const on0 = socket.on.bind(socket);
+  socket.on = (ev, fn) => on0(ev, (...args) => {
+    try { fn(...args); } catch (e) { console.error(`'${ev}' işlenirken hata:`, e); socket.emit('err', 'Sunucuda bir hata oldu, tekrar dene'); }
+  });
+
   socket.on('create', (a = {}) => {
     const name = clean(a.name), token = clean(a.token, 40);
     if (!name || !token) return socket.emit('err', 'Önce adını yaz');
@@ -145,7 +155,7 @@ io.on('connection', socket => {
   socket.on('join', (a = {}) => {
     const room = rooms.get(clean(a.code, 8).toUpperCase());
     const token = clean(a.token, 40);
-    if (!room) return socket.emit(a.auto ? 'leftRoom' : 'err', 'Oda bulunamadı');
+    if (!room) return socket.emit(a.auto ? 'leftRoom' : 'err', a.auto ? 'gone' : 'Oda bulunamadı');
     let i = room.seats.findIndex(s => s.token && s.token === token);
     if (i < 0) {
       if (a.auto) return socket.emit('leftRoom');
@@ -210,7 +220,10 @@ io.on('connection', socket => {
   socket.on('newGame', () => {
     const room = roomOf(socket);
     if (!room || !room.game || !room.game.over) return;
-    if (room.seats[socket.data.seat].token !== room.hostToken) return;
+    // Oda sahibi masada yoksa herhangi bir oyuncu yeni oyunu başlatabilir
+    const host = room.seats.find(x => x.token === room.hostToken && x.connected);
+    if (host && room.seats[socket.data.seat].token !== room.hostToken) return;
+    if (!host) room.hostToken = room.seats[socket.data.seat].token;
     room.game = new Game(room.seats, room.opts);
     room.game.startHand();
     room.timerKey = null;

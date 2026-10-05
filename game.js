@@ -249,6 +249,12 @@ class Game {
       me.hand.push(joker);
       this.takenJoker = joker.id;
       this.addLog(`${this.name(seat)} yerdeki okeyi aldı (${R.tileName(t)} koydu)`);
+      // Okeyi yere bağlayana 101 ceza (kendisi ya da eşli oyunda eşi aldıysa ceza yok)
+      const owner = meld.owner;
+      if (owner !== seat && !this.sameTeam(owner, seat)) {
+        this.seats[owner].penalty += 101;
+        this.addLog(`${this.name(owner)} okeyini kaptırdı: 101 ceza`);
+      }
       return { ok: true, swapped: true };
     }
 
@@ -313,7 +319,9 @@ class Game {
       const w = this.seats[winner];
       if (okeyFinish) { mult *= 2; how.push('okey atarak'); }
       if (w.openType === 'cift') { mult *= 2; how.push('çiftten'); }
-      if (w.openedAt === this.turnCount) { mult *= 2; how.push('elden'); }
+      // Elden bitme: kimse açmamışken bütün taşlarını tek seferde açıp bitirmek
+      const othersOpened = this.seats.some((x, i) => i !== winner && x.opened);
+      if (w.openedAt === this.turnCount && !othersOpened) { mult *= 2; how.push('elden'); }
     }
     const scores = this.seats.map((s, i) => {
       if (i === winner) return -101 * mult + s.penalty;
@@ -386,6 +394,7 @@ class Game {
         openScore: s.openScore,
         openPairs: s.openPairs,
         discardTop: s.discards[s.discards.length - 1] || null,
+        discards: s.discards,
         total: this.totals[i],
       })),
       indicator: this.indicator,

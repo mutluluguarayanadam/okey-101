@@ -431,3 +431,37 @@ table.scores small { color: var(--muted); }
 
 button.danger { background: linear-gradient(#f08a72, #d9553a); color: #fff; box-shadow: 0 3px 0 #8f3322; }
 .ghostbtn { margin-top: 10px; background: transparent; color: var(--muted); box-shadow: none; border: 1px solid rgba(255,255,255,.2); }
+
+/* Ters çevrilmiş okey */
+.tile.joker {
+  background: repeating-linear-gradient(45deg, #2c6b47 0 3px, #245c3c 3px 6px);
+  box-shadow: 0 calc(var(--w) * .08) 0 #173d27, 0 calc(var(--w) * .12) calc(var(--w) * .16) rgba(0,0,0,.35), inset 0 0 0 2px var(--gold);
+  color: var(--gold); justify-content: center; padding-top: 0; gap: 1px;
+}
+.tile.joker .jstar { font-size: calc(var(--w) * .55); line-height: 1; text-shadow: 0 1px 0 rgba(0,0,0,.4); }
+.tile.joker em { font-style: normal; font-size: calc(var(--w) * .2); font-weight: 700; letter-spacing: .02em; }
+.tile.joker::after { content: none; }
+.rack .tile.joker.sel { box-shadow: 0 3px 0 #173d27, 0 0 0 3px var(--gold), inset 0 0 0 2px var(--gold); }
+
+/* Atılanlar */
+.dcount { position: absolute; top: -7px; right: -7px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: #2b2418; color: var(--ivory); font-size: 11px; font-weight: 700; display: grid; place-items: center; box-shadow: 0 0 0 2px rgba(255,255,255,.2); }
+.corner { cursor: pointer; }
+.drow { padding: 8px; border-radius: 10px; margin-bottom: 8px; background: rgba(0,0,0,.2); }
+.drow.focus { outline: 2px solid var(--gold); }
+.drow header { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; font-weight: 500; }
+.drow header i { width: 10px; height: 10px; border-radius: 50%; }
+.drow header small { margin-left: auto; color: var(--muted); font-weight: 400; }
+.dline { display: flex; flex-wrap: wrap; gap: 3px; }
+.dline .tile.last { outline: 2px solid var(--gold); outline-offset: 1px; }
+
+/* Bağlantı uyarısı */
+.netbar { position: fixed; left: 50%; top: 8px; transform: translateX(-50%); z-index: 70; background: #9b3a2b; color: #fff; padding: 8px 14px; border-radius: 10px; font-size: 14px; box-shadow: 0 6px 16px rgba(0,0,0,.4); max-width: 92vw; text-align: center; }
+
+.modal .panel.wide { width: min(820px, 100%); }
+.dgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 8px; }
+.dgrid .drow { margin: 0; }
+.short .modal { padding: 8px; }
+.short .modal .panel { padding: 12px 14px; max-height: 94vh; }
+.short .modal h2 { font-size: 18px; margin: 0 0 6px; }
+.short .dnote { display: none; }
+.short .drow { padding: 6px; }

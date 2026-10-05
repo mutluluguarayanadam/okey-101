@@ -64,23 +64,38 @@ function soundIcon() { $('#btnSound').textContent = muted ? '🔇' : '🔊'; }
 soundIcon();
 
 socket.on('connect', () => {
+  $('#netbar').classList.add('hidden');
   const c = localStorage.getItem('okey_room');
   if (c) socket.emit('join', { code: c, token, auto: true });
+  else if (S) goLobby('Oda kapanmış. Yeni oda kurabilirsin.');
+});
+socket.on('disconnect', () => {
+  $('#netbar').textContent = 'Sunucuyla bağlantı koptu, yeniden bağlanılıyor…';
+  $('#netbar').classList.remove('hidden');
+});
+socket.io.on('reconnect_attempt', n => {
+  if (n >= 3) $('#netbar').textContent = 'Sunucu uyanıyor olabilir (ücretsiz sunucu), lütfen bekle…';
 });
 socket.on('joined', ({ code }) => {
   localStorage.setItem('okey_room', code);
   history.replaceState(null, '', '?oda=' + code);
 });
-socket.on('leftRoom', () => {
+function goLobby(msg) {
+  const wasIn = !!S;
   localStorage.removeItem('okey_room');
   S = null;
   handKey = null;
   scoresOpen = false;
   history.replaceState(null, '', '/');
   $('#code').value = '';
+  discardsOpen = null;
+  leaving = false;
+  $('#modal').classList.add('hidden');
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   render();
-});
+  if (msg && wasIn) toast(msg);
+}
+socket.on('leftRoom', why => goLobby(why === 'gone' ? 'Oda kapanmış (sunucu yeniden başlamış olabilir). Yeni oda kurabilirsin.' : null));
 
 function confirmLeave() {
   const inGame = S && !S.lobby && !S.over;
@@ -90,7 +105,7 @@ function confirmLeave() {
   $('#modal').classList.remove('hidden');
   leaving = true;
   $('#btnStay').onclick = () => { leaving = false; $('#modal').classList.add('hidden'); render(); };
-  $('#btnLeaveOk').onclick = () => { leaving = false; $('#modal').classList.add('hidden'); socket.emit('leave'); };
+  $('#btnLeaveOk').onclick = () => { socket.emit('leave'); goLobby(); };
 }
 let leaving = false;
 $('#btnLeave').onclick = confirmLeave;
@@ -232,9 +247,15 @@ function tileEl(t, small) {
     d.innerHTML = '<span>✿</span>';
     d.title = 'Sahte okey';
   } else {
-    d.style.color = COLORS[t.c];
-    d.innerHTML = `<span>${t.v}</span><i></i>`;
-    if (S && t.id != null && Rules.isJoker(t, S.okey)) { d.classList.add('joker'); d.title = 'Okey'; }
+    if (S && t.id != null && Rules.isJoker(t, S.okey)) {
+      // Gerçek okey ters çevrilmiş gibi gösterilir; diğer taşlarla karışmaz
+      d.classList.add('joker');
+      d.innerHTML = '<span class="jstar">★</span><em>OKEY</em>';
+      d.title = 'Okey (' + Rules.tileName(t) + ')';
+    } else {
+      d.style.color = COLORS[t.c];
+      d.innerHTML = `<span>${t.v}</span><i></i>`;
+    }
   }
   return d;
 }
@@ -453,11 +474,17 @@ function renderCorner(r) {
   const zone = document.createElement('div');
   zone.className = 'dropzone';
   if (p.discardTop) zone.appendChild(tileEl(p.discardTop));
+  if (p.discards.length > 1) {
+    const n = document.createElement('span');
+    n.className = 'dcount';
+    n.textContent = p.discards.length;
+    zone.appendChild(n);
+  }
   const lbl = document.createElement('small');
   lbl.textContent = r === 0 ? 'Senin attığın' : p.name;
   el.replaceChildren(zone, lbl);
-  el.onclick = null;
-  el.removeAttribute('title');
+  el.onclick = () => openDiscards(abs);
+  el.title = 'Atılan taşları gör';
   if (r === 3 && p.discardTop && myTurn() && S.phase === 'draw' && !S.undoUsed) {
     el.classList.add('takeable');
     el.title = 'Bu taşı al';
@@ -468,7 +495,7 @@ function renderCorner(r) {
     if (playing()) {
       el.classList.add('target');
       el.dataset.drop = 'discard';
-      el.onclick = () => sel != null && discard(sel);
+      el.onclick = () => (sel != null ? discard(sel) : openDiscards(abs));
     } else delete el.dataset.drop;
   }
 }
@@ -754,9 +781,43 @@ setInterval(() => {
 }, 250);
 
 // ---------- Puan tablosu / el sonu ----------
+let discardsOpen = null; // açık olan atılanlar penceresi (oyuncu sırası)
+function openDiscards(abs) { discardsOpen = abs; renderModal(); }
+
+function renderDiscards() {
+  const order = [0, 1, 2, 3].map(r => (S.you + r) % 4);
+  let html = '<h2>Atılan taşlar</h2><p class="muted dnote">Soldan sağa atılış sırası; çerçeveli olan en son atılan.</p><div class="dgrid">';
+  html += order.map(i => {
+    const p = S.players[i];
+    const title = i === S.you ? 'Sen' : esc(p.name) + (partner(i) ? ' <span class="badge mate">Eşin</span>' : '');
+    return `<section class="drow ${i === discardsOpen ? 'focus' : ''}"><header><i style="background:${AVA[i]}"></i>${title}<small>${p.discards.length} taş</small></header><div class="dline" data-p="${i}"></div></section>`;
+  }).join('');
+  html += '</div><div class="row" style="margin-top:10px"><button class="grow" id="btnDClose">Kapat</button></div>';
+  $('#modalBody').innerHTML = html;
+  order.forEach(i => {
+    const line = $(`.dline[data-p="${i}"]`);
+    const list = S.players[i].discards;
+    if (!list.length) line.innerHTML = '<span class="muted">Henüz taş atmadı</span>';
+    list.forEach((t, k) => {
+      const el = tileEl(t, true);
+      if (k === list.length - 1) el.classList.add('last');
+      line.appendChild(el);
+    });
+  });
+  $('#btnDClose').onclick = () => { discardsOpen = null; renderModal(); };
+  $('#modalBody').classList.add('wide');
+}
+
 function renderModal() {
   const modal = $('#modal');
   if (leaving) return;
+  const endedNow = S && !S.lobby && S.phase === 'ended' && S.result;
+  $('#modalBody').classList.remove('wide');
+  if (S && !S.lobby && discardsOpen != null && !endedNow) {
+    modal.classList.remove('hidden');
+    renderDiscards();
+    return;
+  }
   const ended = S && !S.lobby && S.phase === 'ended' && S.result;
   if (!S || S.lobby || (!ended && !scoresOpen)) { modal.classList.add('hidden'); return; }
   modal.classList.remove('hidden');
@@ -785,7 +846,7 @@ function renderModal() {
   html += '<div id="revealed"></div>';
   if (!ended) html += `<details><summary class="muted">Oyun akışı</summary><ul class="loglist">${S.log.slice().reverse().map(l => `<li>${esc(l)}</li>`).join('')}</ul></details>`;
   html += '<div class="row" style="margin-top:14px">';
-  if (S.over && S.isHost) html += '<button class="primary grow" id="btnNew">Yeni oyun</button>';
+  if (S.over) html += '<button class="primary grow" id="btnNew">Yeni oyun</button>';
   if (S.over) html += '<button class="grow" id="btnMenu">Ana menü</button>';
   if (!ended) html += '<button class="grow" id="btnClose">Kapat</button>';
   html += '</div>';
@@ -807,12 +868,14 @@ function renderModal() {
   const nb = $('#btnNew');
   if (nb) nb.onclick = () => socket.emit('newGame');
   const mb = $('#btnMenu');
-  if (mb) mb.onclick = () => socket.emit('leave');
+  if (mb) mb.onclick = () => { socket.emit('leave'); goLobby(); };
   const cb = $('#btnClose');
   if (cb) cb.onclick = () => { scoresOpen = false; renderModal(); };
 }
 $('#modal').addEventListener('click', e => {
-  if (e.target.id === 'modal' && scoresOpen) { scoresOpen = false; renderModal(); }
+  if (e.target.id !== 'modal') return;
+  if (discardsOpen != null) { discardsOpen = null; renderModal(); }
+  else if (scoresOpen) { scoresOpen = false; renderModal(); }
 });
 
 
