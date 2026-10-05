@@ -30,7 +30,36 @@ const emptySeat = () => ({ name: null, token: null, isBot: false, connected: fal
 const automated = (room, i) => room.seats[i].isBot || !room.seats[i].connected;
 const humansOnline = room => room.seats.some(s => !s.isBot && s.connected);
 
-const DEFAULT_OPTS = { hands: 5, mode: 'tekli', katlamali: false, waitAttach: false, turnSec: 45 };
+const DEFAULT_OPTS = { hands: 5, mode: 'tekli', katlamali: false, waitAttach: false, turnSec: 45, listed: true };
+
+// Giriş ekranındaki açık oda listesi
+function roomSummary(room) {
+  const host = room.seats.find(x => x.token === room.hostToken);
+  const humans = room.seats.filter(x => x.token && !x.isBot && x.connected).length;
+  const free = room.seats.filter(x => !x.token).length; // boş ya da botun oturduğu koltuk
+  return {
+    code: room.code,
+    host: host ? host.name : room.seats.find(x => x.name && !x.isBot)?.name || '?',
+    humans, free,
+    mode: room.opts.mode, hands: room.opts.hands, katlamali: room.opts.katlamali,
+    status: !room.game ? 'bekliyor' : room.game.over ? 'bitti' : 'oyunda',
+    hand: room.game ? room.game.handIndex : 0,
+  };
+}
+let roomsTimer = null;
+function broadcastRooms() {
+  if (roomsTimer) return;
+  roomsTimer = setTimeout(() => {
+    roomsTimer = null;
+    io.to('lobby').emit('rooms', listRooms());
+  }, 400);
+}
+function listRooms() {
+  return [...rooms.values()]
+    .filter(r => r.opts.listed && humansOnline(r) && r.seats.some(x => !x.token))
+    .map(roomSummary)
+    .sort((a, b) => (a.status === 'bekliyor' ? 0 : 1) - (b.status === 'bekliyor' ? 0 : 1));
+}
 const turnMs = room => room.opts.turnSec * 1000;
 
 function cleanOpts(a = {}, base = DEFAULT_OPTS) {
@@ -40,6 +69,7 @@ function cleanOpts(a = {}, base = DEFAULT_OPTS) {
     katlamali: a.katlamali != null ? !!a.katlamali : base.katlamali,
     waitAttach: a.waitAttach != null ? !!a.waitAttach : base.waitAttach,
     turnSec: [30, 45, 60, 90].includes(+a.turnSec) ? +a.turnSec : base.turnSec,
+    listed: a.listed != null ? !!a.listed : base.listed,
   };
 }
 
@@ -55,6 +85,7 @@ function lobbyView(room, i) {
 }
 
 function send(room) {
+  broadcastRooms();
   room.seats.forEach((s, i) => {
     if (!s.socketId || !s.connected) return;
     const v = room.game
@@ -94,9 +125,10 @@ function schedule(room) {
     room.deadline = Date.now() + turnMs(room);
     room.timer = setTimeout(() => {
       const before = g.turnCount;
-      try { Bot.fullTurn(g, i); } catch (e) { console.error(e); }
+      // Süresi dolan oyuncu adına el açılmaz, işlenmez: sadece taş çekilir ve güvenli bir taş atılır
+      try { Bot.timeoutTurn(g, i); } catch (e) { console.error(e); }
       if (g.turnCount === before) Bot.fallback(g, i);
-      g.addLog(`${room.seats[i].name} için süre doldu, hamle otomatik yapıldı`);
+      g.addLog(`${room.seats[i].name} için süre doldu: taş çekildi ve bir taş atıldı`);
       update(room);
     }, turnMs(room));
   }
@@ -127,6 +159,7 @@ function sit(room, i, socket, name, token) {
   Object.assign(s, { name, token, isBot: false, connected: true, socketId: socket.id });
   socket.data.code = room.code;
   socket.data.seat = i;
+  socket.leave('lobby');
   socket.emit('joined', { code: room.code });
 }
 
@@ -137,6 +170,8 @@ process.on('uncaughtException', e => console.error('Yakalanmamış hata:', e));
 process.on('unhandledRejection', e => console.error('Yakalanmamış söz:', e));
 
 io.on('connection', socket => {
+  socket.join('lobby');
+  socket.emit('rooms', listRooms());
   // Her olay işleyicisini hataya karşı koru
   const on0 = socket.on.bind(socket);
   socket.on = (ev, fn) => on0(ev, (...args) => {
@@ -170,6 +205,8 @@ io.on('connection', socket => {
     }
     update(room);
   });
+
+  socket.on('rooms', () => socket.emit('rooms', listRooms()));
 
   // Oda ayarları (sadece oda sahibi, oyun başlamadan)
   socket.on('settings', (a = {}) => {
@@ -249,7 +286,8 @@ io.on('connection', socket => {
             if (r.err) break;
           }
           break;
-        case 'attach': r = g.addToMeld(i, a.id, a.meld); break;
+        case 'attach': r = g.addToMeld(i, a.id, a.meld, a.choice && { kind: String(a.choice.kind), side: a.choice.side && String(a.choice.side) }); break;
+        case 'autoAttach': r = g.autoAttach(i); break;
         case 'discard': r = g.discard(i, a.id); break;
         default: r = { err: 'Bilinmeyen hamle' };
       }
@@ -292,9 +330,12 @@ io.on('connection', socket => {
       if (next) room.hostToken = next.token;
     }
     socket.emit('leftRoom');
+    socket.join('lobby');
+    socket.emit('rooms', listRooms());
     if (!room.seats.some(x => x.token)) {
       clearTimeout(room.timer);
       rooms.delete(room.code);
+      broadcastRooms();
       return;
     }
     update(room);
@@ -329,6 +370,7 @@ setInterval(() => {
     else if (now - room.lastHuman > ROOM_TTL) {
       clearTimeout(room.timer);
       rooms.delete(code);
+      broadcastRooms();
     }
   }
 }, 60 * 1000);

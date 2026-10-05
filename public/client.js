@@ -36,6 +36,32 @@ function myName() {
 }
 $('#btnCreate').onclick = () => { const n = myName(); if (n) socket.emit('create', { name: n, token }); };
 $('#btnJoin').onclick = () => { const n = myName(); if (n) socket.emit('join', { code: $('#code').value, name: n, token }); };
+$('#btnRefresh').onclick = () => socket.emit('rooms');
+let roomList = [];
+socket.on('rooms', list => { roomList = list || []; renderRooms(); });
+
+function renderRooms() {
+  const box = $('#roomList');
+  if (!roomList.length) {
+    box.innerHTML = '<p class="muted empty">Şu an açık masa yok. Bir oda kur, arkadaşların burada görsün.</p>';
+    return;
+  }
+  box.innerHTML = roomList.map(r => {
+    const st = r.status === 'bekliyor' ? '<span class="badge open">Bekliyor</span>'
+      : r.status === 'oyunda' ? `<span class="badge">Oyunda · ${r.hand}. el</span>` : '<span class="badge">Bitti</span>';
+    const seats = r.status === 'bekliyor' ? `${4 - r.free}/4 oyuncu` : `${r.free} koltukta bot var`;
+    return `<button class="roomcard" data-code="${esc(r.code)}">
+      <span class="rc-main"><b>${esc(r.host)}</b> masası ${st}</span>
+      <span class="rc-sub">${r.mode === 'esli' ? 'Eşli' : 'Tekli'} · ${r.hands} el${r.katlamali ? ' · Katlamalı' : ''} · ${seats}</span>
+      <span class="rc-go">Otur ›</span>
+    </button>`;
+  }).join('');
+  box.querySelectorAll('.roomcard').forEach(b => (b.onclick = () => {
+    const n = myName();
+    if (n) socket.emit('join', { code: b.dataset.code, name: n, token });
+  }));
+}
+renderRooms();
 $('#btnStart').onclick = () => socket.emit('start');
 $('#btnCopy').onclick = () => { navigator.clipboard?.writeText($('#wLink').textContent); toast('Bağlantı kopyalandı'); };
 $('#btnScores').onclick = () => { scoresOpen = true; renderModal(); };
@@ -150,6 +176,7 @@ function turnAlert() {
 }
 
 function show(id) {
+  if (id === 'lobby' && $('#lobby').classList.contains('hidden')) socket.emit('rooms'); // lobiye dönünce listeyi tazele
   ['lobby', 'waiting', 'game'].forEach(x => $('#' + x).classList.toggle('hidden', x !== id));
   document.body.classList.toggle('ingame', id === 'game');
   if (id === 'game') fitLayout();
@@ -208,14 +235,15 @@ function renderWaiting() {
       <label class="field">Hamle süresi<select id="sTurn" ${dis}>${[30, 45, 60, 90].map(n => `<option value="${n}" ${n === o.turnSec ? 'selected' : ''}>${n} sn</option>`).join('')}</select></label>
     </div>
     <label class="check"><input type="checkbox" id="sKat" ${o.katlamali ? 'checked' : ''} ${dis}><span><b>Katlamalı</b><small>Rakipten sonra açan, onun açtığından en az 1 fazla açmalı (çiftte 1 çift fazla).</small></span></label>
-    <label class="check"><input type="checkbox" id="sWait" ${o.waitAttach ? 'checked' : ''} ${dis}><span><b>Açtığı turda işleme yok</b><small>Elini açan, işleme yapmak için bir tur bekler.</small></span></label>`;
+    <label class="check"><input type="checkbox" id="sWait" ${o.waitAttach ? 'checked' : ''} ${dis}><span><b>Açtığı turda işleme yok</b><small>Elini açan, işleme yapmak için bir tur bekler.</small></span></label>
+    <label class="check"><input type="checkbox" id="sList" ${o.listed ? 'checked' : ''} ${dis}><span><b>Açık masalarda göster</b><small>Kapatırsan masaya sadece bağlantı ya da kodla girilir.</small></span></label>`;
   if (S.isHost) {
     const push = extra => socket.emit('settings', Object.assign({
       hands: $('#sHands').value, turnSec: $('#sTurn').value,
-      katlamali: $('#sKat').checked, waitAttach: $('#sWait').checked, mode: o.mode,
+      katlamali: $('#sKat').checked, waitAttach: $('#sWait').checked, listed: $('#sList').checked, mode: o.mode,
     }, extra));
     $('#wSettings').querySelectorAll('[data-mode]').forEach(b => (b.onclick = () => push({ mode: b.dataset.mode })));
-    ['#sHands', '#sTurn', '#sKat', '#sWait'].forEach(id => ($(id).onchange = () => push()));
+    ['#sHands', '#sTurn', '#sKat', '#sWait', '#sList'].forEach(id => ($(id).onchange = () => push()));
   }
   $('#btnStart').classList.toggle('hidden', !S.isHost);
   $('#wNote').textContent = S.isHost
@@ -279,7 +307,31 @@ function arrange(groups, rest) {
   return out;
 }
 
+// Yeni çekilen taşı, ıstakada uyduğu grubun yanına koy (per tamamlıyor/uzatıyorsa ya da çift oluyorsa).
+// Yanındaki yuva boş değilse grupları birleştirmemek için dokunmaz; uygun yer yoksa sona koyar.
 function placeNew(id) {
+  const t = tileById(id);
+  const fits = ids => {
+    const ts = ids.map(x => (x === id ? t : tileById(x)));
+    if (ts.length >= 3) return !!Rules.makeMeld(ts, S.okey);
+    return ts.length === 2 && Rules.analyzePair(ts, S.okey) && !Rules.isJoker(t, S.okey);
+  };
+  if (!Rules.isJoker(t, S.okey)) {
+    for (let r = 0; r < 2; r++) {
+      let c = 0;
+      while (c < COLS) {
+        if (slots[r * COLS + c] == null) { c++; continue; }
+        const start = c;
+        while (c < COLS && slots[r * COLS + c] != null) c++;
+        const ids = slots.slice(r * COLS + start, r * COLS + c);
+        const right = c, left = start - 1;
+        const free = k => k >= 0 && k < COLS && slots[r * COLS + k] == null;
+        // sağa: hedef yuva boş ve ondan sonraki de boş/sıra sonu olmalı (başka grupla birleşmesin)
+        if (free(right) && (right + 1 >= COLS || free(right + 1)) && fits(ids.concat([id]))) { slots[r * COLS + right] = id; return; }
+        if (free(left) && (left - 1 < 0 || free(left - 1)) && fits([id].concat(ids))) { slots[r * COLS + left] = id; return; }
+      }
+    }
+  }
   let last = -1;
   slots.forEach((x, i) => { if (x != null) last = i; });
   let p = last + 2;
@@ -535,27 +587,39 @@ function meldEl(m, t, canNow) {
   d.className = 'meld' + (m.type === 'pair' ? ' pair' : '');
   d.dataset.meld = m.id;
   const tiles = m.tiles.map(x => tileEl(x, true));
-  const info = t ? Rules.attachInfo(m, t, S.okey) : null;
-  if (info && canNow) {
+  const opts = t ? Rules.attachOptions(m, t, S.okey) : [];
+  if (opts.length && canNow) {
     d.classList.add('can');
-    if (info.kind === 'swap') {
-      tiles[info.index].classList.add('swapme');
-      d.title = 'Okeyi al: seçili taş okeyin yerine geçer';
-    } else {
-      const gh = document.createElement('div');
-      gh.className = 'tile sm ghostslot';
-      gh.textContent = '+';
-      if (info.side === 'left') tiles.unshift(gh); else tiles.push(gh);
-      d.title = 'Seçili taşı buraya işle';
-    }
-    d.onclick = () => attach(t.id, m.id);
-  } else if (info) {
+    // Her seçenek ayrı bir hedef: "+" başa/sona ekler, "Al" okeyi alır. Uygulama kendi seçmez.
+    opts.forEach(o => {
+      if (o.kind === 'swap') {
+        const jt = tiles[o.index];
+        jt.classList.add('swapme');
+        jt.dataset.meld = m.id;
+        jt.dataset.choice = 'swap';
+        jt.title = 'Okeyi al (seçili taş okeyin yerine geçer)';
+        jt.onclick = e => { e.stopPropagation(); attach(t.id, m.id, { kind: 'swap' }); };
+      } else {
+        const gh = document.createElement('div');
+        gh.className = 'tile sm ghostslot';
+        gh.textContent = '+';
+        gh.dataset.meld = m.id;
+        gh.dataset.choice = 'add-' + o.side;
+        gh.title = o.side === 'left' ? 'Başa ekle' : 'Sona ekle';
+        gh.onclick = e => { e.stopPropagation(); attach(t.id, m.id, { kind: 'add', side: o.side }); };
+        if (o.side === 'left') tiles.unshift(gh); else tiles.push(gh);
+      }
+    });
+    d.title = opts.length > 1 ? 'Nereye koyacağını seç: + ya da Al' : 'Seçili taşı buraya işle';
+    d.onclick = () => (opts.length === 1 ? attach(t.id, m.id, choiceOf(opts[0])) : toast('Birden fazla yol var: + (ekle) ya da Al (okeyi al) üzerine dokun'));
+  } else if (opts.length) {
     d.classList.add('warn');
     d.title = 'Bu taş bu pere işler: atarsan 101 ceza';
   }
   tiles.forEach(x => d.appendChild(x));
   return d;
 }
+const choiceOf = o => (o.kind === 'swap' ? { kind: 'swap' } : { kind: 'add', side: o.side });
 
 function renderMe() {
   const m = me();
@@ -635,6 +699,11 @@ function renderActions() {
   ob.classList.toggle('ready', playing() && ready);
   btn('seri').disabled = btn('cift').disabled = S.phase === 'ended';
   btn('undo').classList.toggle('hidden', S.mustOpenWith == null);
+  // "İşle": işlenebilen normal taşları tek dokunuşla masaya işler (okey ve okey alma hariç)
+  const islek = playing() && m.opened ? S.hand.filter(t => !Rules.isJoker(t, S.okey) &&
+    S.melds.some(x => Rules.attachOptions(x, t, S.okey).filter(o => o.kind === 'add').length === 1)).length : 0;
+  btn('auto').classList.toggle('hidden', !islek);
+  btn('auto').textContent = `İşle (${islek})`;
 
   let hint = '';
   const selT = sel != null ? tileById(sel) : null;
@@ -655,10 +724,10 @@ function discard(id) {
   sel = null;
   act({ type: 'discard', id });
 }
-function attach(id, meldId) {
+function attach(id, meldId, choice) {
   if (!playing() || id == null) return;
   sel = null;
-  act({ type: 'attach', id, meld: meldId });
+  act({ type: 'attach', id, meld: meldId, choice });
 }
 
 // Açtıktan sonra ıstakadan indirilebilecekler: seri açan seri (+ masada çift alanı varsa çift), çift açan sadece çift
@@ -669,7 +738,51 @@ function layable(ev) {
   return ev.melds.map(g => g.ids).concat(ciftArea ? ev.pairs.map(p => p.ids) : []);
 }
 
+// Açmadan / indirmeden önce önizleme: hangi perler gidecek, oyuncu seçer
 function doOpen() {
+  const m = me();
+  const ev = evalRack();
+  let groups, pairMode;
+  if (!m.opened) {
+    pairMode = !(ev.score >= S.barrier.per) && ev.pairs.length >= S.barrier.cift;
+    groups = pairMode ? ev.pairs.map(p => p.ids) : ev.melds.map(g => g.ids);
+  } else {
+    groups = layable(ev);
+    pairMode = m.openType === 'cift';
+  }
+  if (!groups.length) return;
+  const picked = groups.map(() => true);
+  const draw = () => {
+    const chosen = groups.filter((_, i) => picked[i]);
+    const used = chosen.reduce((a, g) => a + g.length, 0);
+    const score = chosen.reduce((a, g) => a + (g.length >= 3 ? (Rules.makeMeld(g.map(tileById), S.okey) || { score: 0 }).score : 0), 0);
+    let status = '', ok = chosen.length > 0;
+    if (!m.opened) {
+      if (pairMode) { ok = chosen.length >= S.barrier.cift; status = `${chosen.length} çift (en az ${S.barrier.cift})`; }
+      else { ok = score >= S.barrier.per; status = `Toplam ${score} (en az ${S.barrier.per})`; }
+    } else status = `${chosen.length} grup indirilecek`;
+    if (used >= S.hand.length) { ok = false; status += ' · atmak için bir taş bırakmalısın'; }
+    $('#modalBody').innerHTML = `<h2>${m.opened ? 'Perleri indir' : pairMode ? 'Çift aç' : 'Seri aç'}</h2>
+      <p class="muted">İndirmek istemediğin grubun işaretini kaldır.</p>
+      <div class="preview">${groups.map((g, i) => `<label class="pv ${picked[i] ? '' : 'off'}"><input type="checkbox" data-i="${i}" ${picked[i] ? 'checked' : ''}><span class="pvt" data-i="${i}"></span></label>`).join('')}</div>
+      <p class="pvstatus ${ok ? 'ok' : ''}">${status}</p>
+      <div class="row"><button class="grow" id="pvNo">Vazgeç</button><button class="primary grow" id="pvYes" ${ok ? '' : 'disabled'}>${m.opened ? 'İndir' : 'Aç'}</button></div>`;
+    groups.forEach((g, i) => {
+      const box = $(`.pvt[data-i="${i}"]`);
+      g.forEach(id => box.appendChild(tileEl(tileById(id), true)));
+      if (g.length >= 3) { const sc = document.createElement('small'); sc.textContent = (Rules.makeMeld(g.map(tileById), S.okey) || {}).score || ''; box.appendChild(sc); }
+    });
+    $('#modalBody').querySelectorAll('input[data-i]').forEach(c => (c.onchange = () => { picked[+c.dataset.i] = c.checked; draw(); }));
+    $('#pvNo').onclick = close;
+    $('#pvYes').onclick = () => { close(); act({ type: m.opened ? 'lay' : 'open', groups: chosen }); };
+  };
+  const close = () => { leaving = false; $('#modal').classList.add('hidden'); renderModal(); };
+  leaving = true; // modalı başka bir şey ezmesin
+  $('#modal').classList.remove('hidden');
+  draw();
+}
+
+function doOpenDirect() {
   const m = me();
   const ev = evalRack();
   const n = S.hand.length;
@@ -700,13 +813,14 @@ document.querySelector('.actions').onclick = e => {
   if (a === 'seri' || a === 'cift') autoArrange(a);
   else if (a === 'open') doOpen();
   else if (a === 'undo') act({ type: 'undoTake' });
+  else if (a === 'auto') act({ type: 'autoAttach' });
 };
 
 // ---------- Sürükle-bırak (fare ve dokunmatik) ----------
 function dropTargetAt(x, y) {
   const el = document.elementFromPoint(x, y);
   if (!el) return null;
-  return el.closest('[data-slot], [data-meld], [data-drop]');
+  return el.closest('[data-choice], [data-slot], [data-meld], [data-drop]');
 }
 
 $('#rack').addEventListener('pointerdown', e => {
@@ -766,7 +880,15 @@ function endDrag(e) {
   d.over?.classList.remove('over');
   const tgt = e.type === 'pointerup' ? dropTargetAt(e.clientX, e.clientY) : null;
   if (tgt?.dataset.slot != null) moveTile(d.id, +tgt.dataset.slot);
-  else if (tgt?.dataset.meld != null) attach(d.id, +tgt.dataset.meld);
+  else if (tgt?.dataset.choice) {
+    const c = tgt.dataset.choice;
+    attach(d.id, +tgt.dataset.meld, c === 'swap' ? { kind: 'swap' } : { kind: 'add', side: c.slice(4) });
+  } else if (tgt?.dataset.meld != null) {
+    const m = S.melds.find(x => x.id === +tgt.dataset.meld);
+    const opts = m ? Rules.attachOptions(m, tileById(d.id), S.okey) : [];
+    if (opts.length === 1) attach(d.id, m.id, choiceOf(opts[0]));
+    else if (opts.length > 1) toast('Birden fazla yol var: taşı + ya da Al üzerine bırak');
+  }
   else if (tgt?.dataset.drop === 'discard') discard(d.id);
   renderGame();
 }

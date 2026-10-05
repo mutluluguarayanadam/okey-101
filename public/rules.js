@@ -147,11 +147,37 @@
     return { kind: 'add', side: 'right', order: a.order };
   }
 
+  // Bir taşın bir pere işlenebileceği TÜM yollar: okeyi alma, başa ekleme, sona ekleme.
+  // Birden fazla seçenek varsa oyuncuya sorulur; uygulama kendi kendine seçmez.
+  function attachOptions(meld, t, okey) {
+    if (meld.type === 'pair') return [];
+    const out = [];
+    const si = jokerSwapIndex(meld, t, okey);
+    if (si >= 0) out.push({ kind: 'swap', index: si });
+    if (meld.type === 'run') {
+      const n = meld.tiles.length, s = meld.start;
+      if (n < 13) {
+        if (isJoker(t, okey)) {
+          if (s > 1) out.push({ kind: 'add', side: 'left', order: [t].concat(meld.tiles), start: s - 1 });
+          if (s + n <= 13) out.push({ kind: 'add', side: 'right', order: meld.tiles.concat([t]), start: s });
+        } else {
+          const e = eff(t, okey);
+          if (e.c === meld.color && e.v === s - 1) out.push({ kind: 'add', side: 'left', order: [t].concat(meld.tiles), start: s - 1 });
+          if (e.c === meld.color && e.v === s + n) out.push({ kind: 'add', side: 'right', order: meld.tiles.concat([t]), start: s });
+        }
+      }
+    } else {
+      const a = analyzeMeld(meld.tiles.concat([t]), okey);
+      if (a && a.type === 'set') out.push({ kind: 'add', side: 'right', order: a.order });
+    }
+    return out;
+  }
+
   function canAttach(meld, t, okey) {
     return !!attachInfo(meld, t, okey);
   }
 
-  const api = { COLOR_NAMES, okeyOf, isJoker, eff, tileName, tilePoints, runFromOrder, analyzeMeld, makeMeld, analyzePair, jokerSwapIndex, attachInfo, canAttach };
+  const api = { COLOR_NAMES, okeyOf, isJoker, eff, tileName, tilePoints, runFromOrder, analyzeMeld, makeMeld, analyzePair, jokerSwapIndex, attachInfo, attachOptions, canAttach };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Rules = api;
 })(this);

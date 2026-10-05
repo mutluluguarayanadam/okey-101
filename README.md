@@ -26,7 +26,11 @@ Not: Ücretsiz sunucu 15 dakika kimse bağlanmazsa uyur; ilk girişte açılmas�
 - **Seri diz / Çift diz** elindeki en iyi dizilimi otomatik kurar.
 - Taşı sürükleyip yuvalar arasında taşıyabilirsin (telefonda da çalışır). Taşa dokunup boş bir yuvaya dokunmak da olur.
 - Atmak: taşı sağ alt köşeye sürükle, ya da taşa iki kez dokun, ya da seçip köşeye dokun.
-- İşlemek: açtıktan sonra taşı masadaki pere sürükle ya da seçip parlayan pere dokun.
+- İşlemek: açtıktan sonra taşı seç; işlenebileceği perler parlar. "+" (başa/sona ekle) ya da "Al" (okeyi al) üzerine dokun ya da taşı oraya sürükle. Uygulama kendi kendine işlemez.
+- **İşle** düğmesi (isteyene): işlenebilen normal taşları tek dokunuşla işler; okeyi kullanmaz ve okey almaz.
+- **Elini aç / Perleri indir** önce bir önizleme açar; indirmek istemediğin grubun işaretini kaldırabilirsin.
+- Yeni çektiğin taş, ıstakada uyduğu grubun yanına konur.
+- Süren dolarsa senin adına sadece taş çekilir ve güvenli bir taş atılır; el açılmaz, işlenmez.
 - Kırmızı çerçeveli taşlar işlek taştır (atarsan 101 ceza).
 - Telefonda yatay kullanım ve tam ekran (⛶) önerilir.
 
@@ -44,6 +48,9 @@ Not: Ücretsiz sunucu 15 dakika kimse bağlanmazsa uyur; ilk girişte açılmas�
 - Okey atarak, çiftten ya da elden (açtığı turda) bitirmek puanları her biri için ikiye katlar.
 - Dört oyuncu da çift açarsa el iptal edilir ve yeniden dağıtılır.
 - Belirlenen el sayısı sonunda en düşük puan kazanır.
+
+## Giriş
+Açılışta açık masalar listelenir; birine dokunup oturabilir ya da yeni oda kurabilirsin. Oyundaki masalarda botun oturduğu koltuğa geçebilirsin. Oda ayarlarından masayı listeden gizleyebilirsin.
 
 ## Oda ayarları (oda sahibi, oyun başlamadan)
 - **Tekli / Eşli:** Eşli oyunda karşılıklı oturanlar eştir (koltuğa tıklayarak yer değiştirebilirsiniz). Puanlar takım olarak toplanır; bitirenin eşinin el cezası silinir (o el 0 yazar, cezaları hariç). En düşük takım toplamı kazanır.

@@ -465,3 +465,36 @@ button.danger { background: linear-gradient(#f08a72, #d9553a); color: #fff; box-
 .short .modal h2 { font-size: 18px; margin: 0 0 6px; }
 .short .dnote { display: none; }
 .short .drow { padding: 6px; }
+
+/* Giriş: açık masalar */
+.lobbypanel { width: min(480px, 100%); }
+.roomshead { display: flex; align-items: center; justify-content: space-between; margin: 20px 0 8px; }
+.roomshead h3 { margin: 0; font-size: 16px; }
+.roomlist { display: flex; flex-direction: column; gap: 8px; max-height: 46vh; overflow: auto; }
+.roomlist .empty { text-align: center; padding: 14px 6px; margin: 0; }
+.roomcard {
+  display: grid; grid-template-columns: 1fr auto; grid-template-areas: "main go" "sub go"; gap: 3px 10px; align-items: center;
+  text-align: left; background: rgba(0,0,0,.28); color: var(--text); box-shadow: none; border: 1px solid rgba(255,255,255,.12); padding: 10px 12px;
+}
+.roomcard:hover { border-color: var(--gold); }
+.rc-main { grid-area: main; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.rc-sub { grid-area: sub; font-size: 13px; color: var(--muted); }
+.rc-go { grid-area: go; color: var(--gold); font-weight: 700; }
+.bycode { margin-top: 16px; color: var(--muted); font-size: 14px; }
+.bycode summary { cursor: pointer; margin-bottom: 8px; }
+
+/* Açma önizlemesi */
+.preview { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; max-height: 50vh; overflow: auto; }
+.pv { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 10px; background: rgba(0,0,0,.2); cursor: pointer; }
+.pv input { width: 20px; height: 20px; accent-color: var(--gold); flex: none; }
+.pv.off { opacity: .45; }
+.pvt { display: flex; gap: 2px; align-items: center; flex-wrap: wrap; }
+.pvt small { margin-left: 8px; color: var(--muted); font-weight: 700; }
+.pvstatus { font-weight: 500; color: #ff9d8a; }
+.pvstatus.ok { color: #6fe39b; }
+
+/* İşleme seçenekleri: + ve Al tıklanabilir */
+.meld.can .ghostslot, .meld.can .swapme { cursor: pointer; }
+.meld.can .ghostslot:hover { background: rgba(245,192,68,.45); }
+
+#btnCreate { white-space: nowrap; }

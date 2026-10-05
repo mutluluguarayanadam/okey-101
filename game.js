@@ -226,7 +226,8 @@ class Game {
     return { ok: true };
   }
 
-  addToMeld(seat, tileId, meldId) {
+  // choice: { kind: 'swap' | 'add', side: 'left' | 'right' } — birden fazla yol varsa oyuncunun seçimi
+  addToMeld(seat, tileId, meldId, choice) {
     const e = this._check(seat, 'play');
     if (e) return { err: e };
     const me = this.seats[seat];
@@ -238,8 +239,16 @@ class Game {
     const tiles = this._pick(me, [tileId]);
     if (!tiles) return { err: 'Geçersiz taş' };
     const t = tiles[0];
-    const info = R.attachInfo(meld, t, this.okey);
-    if (!info) return { err: 'Bu taş o pere uymuyor' };
+    const opts = R.attachOptions(meld, t, this.okey);
+    if (!opts.length) return { err: 'Bu taş o pere uymuyor' };
+    let info = opts[0];
+    if (choice && choice.kind) {
+      info = opts.find(o => o.kind === choice.kind && (o.kind === 'swap' || !choice.side || o.side === choice.side));
+      if (!info) return { err: 'Bu taş o şekilde işlenemez' };
+    } else if (opts.length > 1) {
+      // Seçim belirtilmediyse okeyi kendiliğinden almayız; ekleme tercih edilir
+      info = opts.find(o => o.kind === 'add') || opts[0];
+    }
 
     if (info.kind === 'swap') {
       // Yerdeki okeyi al, yerine gerçek taşı koy
@@ -271,6 +280,27 @@ class Game {
     if (this.takenJoker === tileId) this.takenJoker = null;
     this.addLog(`${this.name(seat)} ${R.tileName(t)} işledi`);
     return { ok: true };
+  }
+
+  // "İşle" düğmesi: işlenebilen taşları (okey hariç, okey alma hariç) masaya işler
+  autoAttach(seat) {
+    const e = this._check(seat, 'play');
+    if (e) return { err: e };
+    const me = this.seats[seat];
+    if (!me.opened) return { err: 'İşlemek için önce elini açmalısın' };
+    let count = 0, changed = true;
+    while (changed && me.hand.length > 1) {
+      changed = false;
+      for (const t of me.hand.slice()) {
+        if (R.isJoker(t, this.okey) || me.hand.length <= 1) continue;
+        for (const m of this.melds) {
+          const adds = R.attachOptions(m, t, this.okey).filter(o => o.kind === 'add');
+          if (adds.length !== 1) continue;
+          if (this.addToMeld(seat, t.id, m.id, adds[0]).ok) { count++; changed = true; break; }
+        }
+      }
+    }
+    return count ? { ok: true, count } : { err: 'İşlenecek taş yok' };
   }
 
   discard(seat, tileId) {

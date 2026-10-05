@@ -17,15 +17,17 @@
 </head>
 <body>
   <section id="lobby" class="screen">
-    <div class="panel">
+    <div class="panel lobbypanel">
       <h1 class="logo"><span class="lt r">1</span><span class="lt k">0</span><span class="lt b">1</span> Okey</h1>
-      <label class="field">Adın<input id="name" maxlength="16" autocomplete="nickname"></label>
-      <button id="btnCreate" class="primary wide">Oda kur</button>
-      <p class="or">ya da arkadaşının odasına katıl</p>
       <div class="row">
-        <input id="code" placeholder="Oda kodu" maxlength="5" class="grow code-input">
-        <button id="btnJoin">Katıl</button>
+        <label class="field grow">Adın<input id="name" maxlength="16" autocomplete="nickname"></label>
+        <button id="btnCreate" class="primary">Oda kur</button>
       </div>
+      <div class="roomshead"><h3>Açık masalar</h3><button id="btnRefresh" class="icon" title="Yenile">↻</button></div>
+      <div id="roomList" class="roomlist"></div>
+      <details class="bycode"><summary>Kodla katıl</summary>
+        <div class="row"><input id="code" placeholder="Oda kodu" maxlength="5" class="grow code-input"><button id="btnJoin">Katıl</button></div>
+      </details>
     </div>
   </section>
 
@@ -88,6 +90,7 @@
           <button data-act="seri">Seri diz</button>
           <button data-act="cift">Çift diz</button>
           <button data-act="undo" class="warn">Geri koy (101 ceza)</button>
+          <button data-act="auto" class="hidden">İşle</button>
           <button data-act="open" class="primary">Elini aç</button>
         </div>
       </div>

@@ -104,7 +104,10 @@ function findPairs(tiles, okey) {
 
 const key = (c, v) => c * 20 + v;
 // Karar ağırlıkları (simülasyonla ayarlandı)
-const W = { pot: +(process.env.W_POT || 26), dng: +(process.env.W_DNG || 34), dngV: +(process.env.W_DNGV || 2) };
+const W = {
+  pot: +(process.env.W_POT || 50), dng: +(process.env.W_DNG || 34), dngV: +(process.env.W_DNGV || 2),
+  keep: +(process.env.W_KEEP || 600), spare: +(process.env.W_SPARE || 60), strong: +(process.env.W_STRONG || 1), strongBonus: +(process.env.W_SB || 0),
+};
 
 // Görünmeyen (henüz kimsenin görmediği) taş sayısı: her taştan 2 tane var
 function knowledge(g, seat) {
@@ -269,8 +272,19 @@ function chooseDiscard(g, seat) {
   const hand = me.hand;
   if (hand.length === 1) return hand[0];
   const kn = knowledge(g, seat);
-  const keep = new Set();
-  if (me.openType !== 'cift') solve(hand, ok, 10000).melds.forEach(m => m.forEach(t => keep.add(t)));
+  // Per taşlarının koruma değeri: peri bozacak taş (3'lü perin taşı, serinin ortası) kesinlikle atılmaz;
+  // 4+ serinin ucundaki ya da 4'lü grubun fazla taşı "yedek"tir, gerekirse atılabilir (per yine geçerli kalır)
+  const keepW = new Map();
+  if (me.openType !== 'cift') {
+    solve(hand, ok, 10000).melds.forEach(m => {
+      const a = R.analyzeMeld(m, ok);
+      const order = a ? a.order : m;
+      order.forEach((t, i) => {
+        const spare = order.length >= 4 && (a && a.type === 'set' ? true : i === 0 || i === order.length - 1);
+        keepW.set(t, spare ? W.spare : W.keep);
+      });
+    });
+  }
   const pairMode = me.openType === 'cift' || (!me.opened && findPairs(hand, ok).length >= 4);
 
   // Puan baskısı: açtıysak eldeki sayı ceza olur; biri bitirmeye yaklaştıkça artar
@@ -290,8 +304,12 @@ function chooseDiscard(g, seat) {
   for (const t of hand) {
     if (R.isJoker(t, ok)) continue;
     const e = R.eff(t, ok);
-    let k = keep.has(t) ? 60 : 0;
-    k += potential(t, hand, ok, kn, pairMode) * potW;
+    // Hazır perdeki taşı rakibi engellemek için asla bozma (ancak başka seçenek yoksa)
+    let k = keepW.get(t) || 0;
+    const pot = potential(t, hand, ok, kn, pairMode);
+    k += pot * potW;
+    // Güçlü yarım dizilimleri (iki taşı elde, üçüncüsü gelebilir) de koru
+    if (!keepW.has(t) && pot >= W.strong) k += W.strongBonus;
     k += danger(g, seat, t, kn) * (W.dng + e.v * W.dngV);
     k -= e.v * pts * 2;
     if (g.melds.some(m => R.canAttach(m, t, ok))) k += 1000; // işlek taş atmak 101 ceza
@@ -330,14 +348,18 @@ function layAndAttach(g, seat, reserve) {
       outer: for (const t of list) {
         for (const m of g.melds) {
           if (me.hand.length <= 1) break outer;
-          const info = R.attachInfo(m, t, ok);
-          if (!info) continue;
-          if (info.kind === 'swap') {
+          const opts = R.attachOptions(m, t, ok);
+          if (!opts.length) continue;
+          let info = opts.find(o => o.kind === 'swap');
+          if (info) {
+            // Okeyi ancak sonra kullanabileceksek al
             const jokerTile = m.tiles[info.index];
             const later = g.melds.some(o => o !== m && o.type !== 'pair' && R.attachInfo(o, jokerTile, ok));
-            if (!later) continue;
+            if (!later) info = null;
           }
-          if (g.addToMeld(seat, t.id, m.id).ok) { changed = true; break outer; }
+          info = info || opts.find(o => o.kind === 'add');
+          if (!info) continue;
+          if (g.addToMeld(seat, t.id, m.id, info).ok) { changed = true; break outer; }
         }
       }
     }
@@ -385,9 +407,18 @@ function fallback(g, seat) {
   if (g.phase === 'play' && me.hand.length) g.discard(seat, me.hand[me.hand.length - 1].id);
 }
 
+function timeoutTurn(g, seat) {
+  if (g.turn !== seat) return;
+  if (g.phase === 'play' && g.mustOpenWith != null) { g.undoTake(seat); }
+  if (g.phase === 'draw') g.drawPile(seat);
+  if (g.phase !== 'play' || g.turn !== seat) return;
+  const t = chooseDiscard(g, seat);
+  if (g.discard(seat, t.id).err) fallback(g, seat);
+}
+
 function fullTurn(g, seat) {
   if (g.phase === 'draw') draw(g, seat);
   if (g.phase === 'play' && g.turn === seat) play(g, seat);
 }
 
-module.exports = { solve, findPairs, draw, play, fullTurn, fallback };
+module.exports = { solve, findPairs, draw, play, fullTurn, timeoutTurn, fallback };
