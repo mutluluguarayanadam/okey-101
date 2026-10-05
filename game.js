@@ -259,12 +259,6 @@ class Game {
       me.hand.push(joker);
       this.takenJoker = joker.id;
       this.addLog(`${this.name(seat)} yerdeki okeyi aldı (${R.tileName(t)} koydu)`);
-      // Okeyi yere bağlayana 101 ceza (kendisi ya da eşli oyunda eşi aldıysa ceza yok)
-      const owner = meld.owner;
-      if (owner !== seat && !this.sameTeam(owner, seat)) {
-        this.seats[owner].penalty += 101;
-        this.addLog(`${this.name(owner)} okeyini kaptırdı: 101 ceza`);
-      }
       return { ok: true, swapped: true };
     }
 

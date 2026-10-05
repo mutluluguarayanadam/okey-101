@@ -22,6 +22,11 @@ Tarayıcıda http://localhost:3000 aç.
 Not: Ücretsiz sunucu 15 dakika kimse bağlanmazsa uyur; ilk girişte açılması ~1 dakika sürebilir. Sunucu yeniden başlarsa süren oyunlar silinir.
 
 ## Oynanış
+- **Taş çekme:** Yığından ya da sol alttaki taştan, dokunarak ya da ıstakada istediğin yuvaya sürükleyerek çekersin. Sıra sendeyken yığında "Çek", soldaki taşta "Al" yazar.
+- Yığında 6, 3 ve 1 taş kalınca uyarı verilir. Son 10 saniyede süre halkası kırmızıya döner.
+- Okey, işlek taş ya da kullanılmamış alınan okey atılırken onay istenir (Ayarlar'dan kapatılabilir).
+- Ayarlar (⚙️): ses, titreşim, otomatik dizme, riskli atış onayı, renk körlüğü desteği. Nasıl oynanır (❔) giriş ekranında ve ayarlarda.
+- Bilgisayarda kısayollar: Boşluk çek, A soldakini al, S seri diz, C çift diz, Delete at, Enter elini aç, Esc seçimi kaldır.
 - Istaka iki sıra, 15'er yuvadır. Perlerin arasına bir boşluk bırakınca per otomatik algılanır, puanı ıstakanın üstünde görünür (yeşil çizgi: geçerli per, mavi çizgi: çift).
 - **Seri diz / Çift diz** elindeki en iyi dizilimi otomatik kurar.
 - Taşı sürükleyip yuvalar arasında taşıyabilirsin (telefonda da çalışır). Taşa dokunup boş bir yuvaya dokunmak da olur.
@@ -43,7 +48,7 @@ Not: Ücretsiz sunucu 15 dakika kimse bağlanmazsa uyur; ilk girişte açılmas�
 - Seri açan yeni seri indirebilir. Masada çift açan varsa çift alanına çift de indirebilir. Çift açan yeni seri açamaz, sadece çift indirir ve işler.
 - Bir pere aynı turda bir yandan en fazla 2 taş işlenir.
 - Elini açan, yerdeki okeyin yerine geçen taşı koyup okeyi alabilir. Aynı sayı perinde bu ancak per 4 taşlıysa olur. Alınan okey aynı tur kullanılmazsa 101 ceza yazılır.
-- Okey atmak ya da işlek taş atmak 101 cezadır (bitiş taşı hariç).
+- Okey atmak ya da işlek taş atmak 101 cezadır (bitiş taşı hariç). Yerdeki okeyin alınması ceza değildir.
 - Eli bitiren -101, açmayan 202 alır. Açan, elinde kalan taşların toplamını yazar; çift açanın puanı ikiye katlanır. Elde kalan her okey için +101 eklenir.
 - Okey atarak, çiftten ya da elden (açtığı turda) bitirmek puanları her biri için ikiye katlar.
 - Dört oyuncu da çift açarsa el iptal edilir ve yeniden dağıtılır.

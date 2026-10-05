@@ -18,12 +18,14 @@
 <body>
   <section id="lobby" class="screen">
     <div class="panel lobbypanel">
+      <div class="lobbytools"><button id="btnHelpL" class="icon" title="Nasıl oynanır">❔</button><button id="btnSettingsL" class="icon" title="Ayarlar">⚙️</button></div>
       <h1 class="logo"><span class="lt r">1</span><span class="lt k">0</span><span class="lt b">1</span> Okey</h1>
       <div class="row idrow">
         <button id="btnAvatar" class="avapick" title="Avatarını seç"></button>
         <label class="field grow">Adın<input id="name" maxlength="16" autocomplete="nickname"></label>
-        <button id="btnCreate" class="primary">Oda kur</button>
+        <button id="btnCreate">Oda kur</button>
       </div>
+      <button id="btnQuick" class="primary wide quick">⚡ Hemen oyna</button>
       <div class="roomshead"><h3>Açık masalar</h3><button id="btnRefresh" class="icon" title="Yenile">↻</button></div>
       <div id="roomList" class="roomlist"></div>
       <details class="bycode"><summary>Kodla katıl</summary>
@@ -50,7 +52,7 @@
       <div id="status"></div>
       <div class="tbtns">
         <button id="btnChat" class="icon" title="Sohbet">💬</button>
-        <button id="btnSound" class="icon" title="Ses">🔊</button>
+        <button id="btnSettings" class="icon" title="Ayarlar">⚙️</button>
         <button id="btnFull" class="icon" title="Tam ekran">⛶</button>
         <button id="btnScores" class="icon" title="Puanlar ve oyun akışı">🏆</button>
         <button id="btnLeave" class="icon" title="Oyundan çık">🚪</button>
@@ -73,6 +75,7 @@
             <div class="stack"><div id="okeyTile"></div><small>Okey</small></div>
           </div>
           <div id="melds" class="melds"></div>
+          <div id="ticker" class="ticker"></div>
         </div>
       </div>
     </div>

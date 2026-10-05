@@ -598,3 +598,72 @@ button.danger { background: linear-gradient(#f08a72, #d9553a); color: #fff; box-
 .short .teamsum { margin: 0; font-size: 13px; }
 .short .modal .panel.result .row { margin-top: 6px !important; }
 .short .modal .panel.result .row button { padding: 7px 10px; }
+
+/* ================= Cilalama: çekme, uyarılar, yardımcılar ================= */
+#pile, #corner3 { touch-action: none; }
+.pile { overflow: visible; }
+.pile.active::after, .corner.takeable .dropzone::before {
+  position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(100% + 4px);
+  padding: 1px 7px; border-radius: 6px; background: var(--gold); color: #2b2418;
+  font-size: 11px; font-weight: 800; white-space: nowrap; pointer-events: none; z-index: 4;
+  box-shadow: 0 2px 6px rgba(0,0,0,.4);
+}
+.pile.active::after { content: 'Çek'; }
+.corner.takeable .dropzone::before { content: 'Al'; }
+.pile.low #pileCount { color: #d97706; }
+.pile.crit { box-shadow: 0 3px 0 var(--ivory-edge), 3px 6px 0 #b9a676, 0 0 0 3px #e2402f; animation: pulseRed 1s ease-in-out infinite; }
+.pile.crit #pileCount { color: #c8231f; }
+@keyframes pulseRed { 50% { box-shadow: 0 3px 0 var(--ivory-edge), 3px 6px 0 #b9a676, 0 0 0 7px rgba(226,64,47,.35); } }
+.tile.back { background: repeating-linear-gradient(45deg, #e9dfc2 0 4px, #d9cba3 4px 8px); }
+
+/* Çekme sırası: ıstaka ve boş yuvalar davet eder */
+body.awaitdraw .rack { box-shadow: 0 10px 20px rgba(0,0,0,.5), 0 0 0 3px rgba(245,192,68,.55); }
+body.drawing .slot:not(:has(.tile)) { background: rgba(245,192,68,.22); outline: 1px dashed rgba(245,192,68,.7); outline-offset: -2px; }
+body.drawing .slot.over { background: rgba(245,192,68,.55); }
+
+/* Istakadaki perin puanı */
+.gscore {
+  position: absolute; top: -8px; left: -4px; z-index: 3; min-width: 18px; height: 16px; padding: 0 4px;
+  border-radius: 8px; background: #2fa864; color: #fff; font-size: 10px; font-weight: 800; line-height: 16px; text-align: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,.4); letter-spacing: 0;
+}
+.rack .tile.sel .gscore { display: none; }
+
+/* Yeni atılan taş */
+.tile.just { animation: pop .6s ease-out; }
+@keyframes pop { 0% { transform: scale(1.5) translateY(-6px); box-shadow: 0 0 0 4px var(--gold); } 100% { transform: none; } }
+
+/* Son hamle şeridi */
+.center { position: relative; }
+.ticker {
+  position: absolute; left: 50%; bottom: 6px; transform: translate(-50%, 6px); z-index: 5; max-width: 90%;
+  padding: 4px 12px; border-radius: 14px; background: rgba(0,0,0,.6); color: var(--ivory); font-size: 12px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0; pointer-events: none; transition: opacity .3s, transform .3s;
+}
+.ticker.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* Süre azalınca */
+body.hurry .mechip.turn .ava::before, body.hurry .side .mechip .ava::before { background: conic-gradient(#e2402f calc(var(--p) * 1turn), rgba(255,255,255,.12) 0); }
+body.hurry #status.myturn { color: #ff8a73; animation: pulseRed 1s ease-in-out infinite; }
+
+/* Renk körlüğü: her renge ayrı şekil */
+body.shapes .tile[data-c="1"] i { border-radius: 1px; }
+body.shapes .tile[data-c="2"] i { border-radius: 1px; transform: rotate(45deg) scale(.85); }
+body.shapes .tile[data-c="3"] i { border-radius: 0; background: none; width: 0; height: 0;
+  border-left: calc(var(--w) * .1) solid transparent; border-right: calc(var(--w) * .1) solid transparent; border-bottom: calc(var(--w) * .17) solid currentColor; }
+
+/* Giriş ekranı */
+.lobbypanel { position: relative; }
+.lobbytools { position: absolute; top: 14px; right: 14px; display: flex; gap: 6px; }
+.quick { margin-top: 14px; font-size: 17px; padding: 12px; }
+#btnCreate { background: linear-gradient(#f3ead2, #ddd0ac); box-shadow: 0 3px 0 #9c8c62; }
+
+/* Ayarlar ve yardım */
+.prefs { display: flex; flex-direction: column; gap: 12px; margin-top: 6px; }
+.help { max-height: 62vh; overflow: auto; padding-right: 4px; font-size: 14px; line-height: 1.5; }
+.help h3 { margin: 12px 0 2px; font-size: 15px; color: var(--gold); }
+.help p { margin: 0; }
+kbd { display: inline-block; padding: 0 5px; border-radius: 4px; background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.25); font-size: 12px; }
+.short .ticker { font-size: 11px; bottom: 3px; }
+.short .gscore { top: -7px; font-size: 9px; height: 14px; line-height: 14px; min-width: 15px; }
+.short .p-top .pinfo b { max-width: 120px; }

@@ -28,9 +28,17 @@ let handKey = null;
 let fresh = new Set();               // yeni çekilen taşlar
 let drag = null;
 let lastTap = { id: null, t: 0 };
+let pendingSlot = null; // sürükleyerek çekilen taşın bırakıldığı yuva
 let scoresOpen = false;
 let wasMyTurn = false;
-let muted = localStorage.getItem('okey_mute') === '1';
+const PREF_DEFAULT = { sound: true, vibrate: true, autoSort: true, confirmRisky: true, shapes: false };
+let prefs = Object.assign({}, PREF_DEFAULT, (() => { try { return JSON.parse(localStorage.getItem('okey_prefs')) || {}; } catch (e) { return {}; } })());
+if (localStorage.getItem('okey_mute') === '1' && !localStorage.getItem('okey_prefs')) prefs.sound = false;
+function savePrefs() {
+  localStorage.setItem('okey_prefs', JSON.stringify(prefs));
+  document.body.classList.toggle('shapes', !!prefs.shapes);
+}
+savePrefs();
 
 // ---------- Giriş ----------
 const params = new URLSearchParams(location.search);
@@ -101,7 +109,7 @@ renderRooms();
 $('#btnStart').onclick = () => socket.emit('start');
 $('#btnCopy').onclick = () => { navigator.clipboard?.writeText($('#wLink').textContent); toast('Bağlantı kopyalandı'); };
 $('#btnScores').onclick = () => { scoresOpen = true; renderModal(); };
-$('#btnSound').onclick = () => { muted = !muted; localStorage.setItem('okey_mute', muted ? '1' : '0'); soundIcon(); };
+$('#btnSettings').onclick = () => openSettings();
 const touch = matchMedia('(pointer: coarse)').matches;
 let fsTried = false;
 $('#game').addEventListener('pointerdown', () => {
@@ -122,8 +130,7 @@ $('#btnFull').onclick = async () => {
 };
 $('#btnTipClose').onclick = () => { $('#rotateTip').classList.add('closed'); localStorage.setItem('okey_tip', '1'); };
 if (localStorage.getItem('okey_tip')) $('#rotateTip').classList.add('closed');
-function soundIcon() { $('#btnSound').textContent = muted ? '🔇' : '🔊'; }
-soundIcon();
+
 
 socket.on('connect', () => {
   $('#netbar').classList.add('hidden');
@@ -193,23 +200,25 @@ function toast(msg) {
 }
 
 let actx;
-function turnAlert() {
-  navigator.vibrate?.(60);
-  if (muted) return;
+// Kısa sesler: notalar [frekans, ...], her biri ~90ms
+function beep(notes, vol = 0.18, type = 'triangle') {
+  if (!prefs.sound) return;
   try {
     actx = actx || new AudioContext();
-    const o = actx.createOscillator(), g = actx.createGain(), t = actx.currentTime;
-    o.type = 'triangle';
-    o.frequency.setValueAtTime(660, t);
-    o.frequency.setValueAtTime(880, t + 0.09);
+    const t = actx.currentTime, len = notes.length * 0.09 + 0.2;
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type;
+    notes.forEach((f, i) => o.frequency.setValueAtTime(f, t + i * 0.09));
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.18, t + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + len);
     o.connect(g).connect(actx.destination);
     o.start(t);
-    o.stop(t + 0.32);
+    o.stop(t + len + 0.02);
   } catch (e) { /* ses yok */ }
 }
+const buzz = ms => prefs.vibrate && navigator.vibrate?.(ms);
+function turnAlert() { buzz(60); beep([660, 880]); }
 
 function show(id) {
   if (id === 'lobby' && $('#lobby').classList.contains('hidden')) socket.emit('rooms'); // lobiye dönünce listeyi tazele
@@ -331,6 +340,7 @@ function tileEl(t, small) {
       d.title = 'Okey (' + Rules.tileName(t) + ')';
     } else {
       d.style.color = COLORS[t.c];
+      d.dataset.c = t.c;
       d.innerHTML = `<span>${t.v}</span><i></i>`;
     }
   }
@@ -397,13 +407,14 @@ function syncHand() {
     fresh.clear();
     const sorted = S.hand.slice().sort((a, b) => tileKey(a) - tileKey(b)).map(t => t.id);
     slots = arrange([], sorted);
-    autoArrange('seri', true);
+    if (prefs.autoSort) autoArrange('seri', true);
     return;
   }
   slots = slots.map(id => (ids.includes(id) ? id : null));
   ids.forEach(id => {
     if (slots.includes(id)) return;
     placeNew(id);
+    if (pendingSlot != null) { moveTile(id, pendingSlot); pendingSlot = null; }
     fresh.add(id);
     setTimeout(() => { fresh.delete(id); }, 2600);
   });
@@ -529,13 +540,48 @@ function renderGame() {
   $('#pileCount').textContent = S.pile;
   const canDraw = myTurn() && S.phase === 'draw';
   $('#pile').classList.toggle('active', canDraw);
-  $('#pile').onclick = () => canDraw && act({ type: 'drawPile' });
+  $('#pile').classList.toggle('low', S.pile <= 6 && S.pile > 3);
+  $('#pile').classList.toggle('crit', S.pile <= 3);
+  $('#pile').title = canDraw ? 'Taş çek: dokun ya da ıstakaya sürükle' : `Yığında ${S.pile} taş`;
+  document.body.classList.toggle('awaitdraw', canDraw);
+  pileWarning();
+  ticker();
 
   renderMelds();
   renderMe();
   if (!(drag && drag.moved)) renderRack();
   renderActions();
   renderModal();
+}
+
+// Yığın azalınca uyarı (her eşik bir kez)
+let lastPile = null;
+function pileWarning() {
+  if (S.phase === 'ended') { lastPile = null; return; }
+  const p = S.pile;
+  if (lastPile != null && p < lastPile) {
+    const hit = [6, 3, 1].find(x => p <= x && lastPile > x);
+    if (hit) {
+      toast(p === 1 ? '⚠️ Yığında SON TAŞ kaldı!' : `⚠️ Yığında ${p} taş kaldı`);
+      beep([520, 420], 0.12, 'sine');
+    }
+  }
+  lastPile = p;
+}
+
+// Son hamle şeridi: masada kısa süreliğine görünür
+let lastLogLine = null;
+function ticker() {
+  const line = S.log[S.log.length - 1];
+  const el = $('#ticker');
+  if (!line || line === lastLogLine) return;
+  lastLogLine = line;
+  el.textContent = line;
+  el.classList.remove('show');
+  void el.offsetWidth;
+  el.classList.add('show');
+  clearTimeout(ticker.h);
+  ticker.h = setTimeout(() => el.classList.remove('show'), 3500);
 }
 
 function renderStatus() {
@@ -545,6 +591,7 @@ function renderStatus() {
   if (S.phase === 'ended') txt = S.over ? 'Oyun bitti' : 'El bitti, yeni el başlıyor…';
   else if (myTurn()) txt = S.phase === 'draw' ? 'Sıra sende: taş çek' : 'Sıra sende: bir taş at';
   else txt = `${S.players[S.turn].name} oynuyor`;
+  if (S.phase !== 'ended' && S.pile <= 3) txt += ` · Yığında ${S.pile} taş!`;
   st.textContent = txt;
 }
 
@@ -569,6 +616,7 @@ function renderPlayer(el, abs) {
     `<div class="pinfo"><b>${esc(p.name)}</b><small>${p.count} taş<span class="tot"> · ${p.total} puan</span></small><div class="tags">${tags.join('')}</div></div>`;
 }
 
+const prevDiscards = {};
 // Köşe r: (sen + r) numaralı oyuncunun attığı taş. 3 = soldaki (alabilirsin), 0 = senin atış alanın
 function renderCorner(r) {
   const abs = (S.you + r) % 4;
@@ -577,7 +625,12 @@ function renderCorner(r) {
   el.className = `corner ${['c-br', 'c-tr', 'c-tl', 'c-bl'][r]}`;
   const zone = document.createElement('div');
   zone.className = 'dropzone';
-  if (p.discardTop) zone.appendChild(tileEl(p.discardTop));
+  if (p.discardTop) {
+    const te = tileEl(p.discardTop);
+    if (prevDiscards[abs] != null && p.discards.length > prevDiscards[abs]) te.classList.add('just');
+    zone.appendChild(te);
+  }
+  prevDiscards[abs] = p.discards.length;
   if (p.discards.length > 1) {
     const n = document.createElement('span');
     n.className = 'dcount';
@@ -591,8 +644,9 @@ function renderCorner(r) {
   el.title = 'Atılan taşları gör';
   if (r === 3 && p.discardTop && myTurn() && S.phase === 'draw' && !S.undoUsed) {
     el.classList.add('takeable');
-    el.title = 'Bu taşı al';
-    el.onclick = () => act({ type: 'drawDiscard' });
+    el.title = 'Bu taşı al: dokun ya da ıstakaya sürükle';
+    el.onclick = null; // dokunma/sürükleme aşağıdaki işaretçi olaylarıyla
+
   }
   if (r === 0) {
     el.id = 'corner0';
@@ -699,6 +753,7 @@ function renderRack() {
   const ev = evalRack();
   const inMeld = new Set(ev.melds.flatMap(m => m.ids));
   const inPair = new Set(ev.pairs.flatMap(p => p.ids));
+  const firstOf = new Map(ev.melds.map(m => [m.ids[0], m.score]));
   const showIsler = S.melds.length > 0;
   for (let r = 0; r < 2; r++) {
     const row = document.createElement('div');
@@ -716,6 +771,7 @@ function renderRack() {
         if (sel === id) d.classList.add('sel');
         if (fresh.has(id)) d.classList.add('fresh');
         if (inMeld.has(id)) d.classList.add('grp');
+        if (firstOf.has(id)) { const b = document.createElement('span'); b.className = 'gscore'; b.textContent = firstOf.get(id); d.appendChild(b); }
         else if (inPair.has(id)) d.classList.add('grp', 'pair');
         if (showIsler && !Rules.isJoker(t, S.okey) && S.melds.some(m => Rules.canAttach(m, t, S.okey))) {
           d.classList.add('isler');
@@ -765,16 +821,75 @@ function renderActions() {
   else if (selIsler && !(playing() && me().opened)) hint = 'Bu taş işlek: masadaki kırmızı çerçeveli pere uyuyor. Atarsan 101 ceza yazılır.';
   else if (playing() && sel != null) hint = me().opened && selIsler ? 'Parlayan pere dokunarak işle (+ işaretli yere eklenir). Okeyi alabileceğin perde okey parlar.' : 'Sağ alttaki alana dokunarak at ya da boş bir yuvaya taşı.';
   else if (playing()) hint = 'Perlerin arasında bir boşluk bırak, puanın otomatik hesaplanır. Taşı sürükleyip sağ alt köşeye bırakarak at.';
-  else if (myTurn()) hint = 'Ortadaki yığına ya da sol alttaki taşa dokunarak çek.';
+  else if (myTurn()) hint = 'Ortadaki yığından ya da sol alttaki taştan çek: dokun ya da ıstakada istediğin yuvaya sürükle.';
   $('#hint').textContent = hint;
 }
 
 // ---------- Hamleler ----------
 function act(a) { socket.emit('act', a); }
-function discard(id) {
+function discard(id, force) {
   if (!playing() || id == null) return;
+  const t = tileById(id);
+  if (!force && prefs.confirmRisky && t && S.hand.length > 1) {
+    let warn = null;
+    if (Rules.isJoker(t, S.okey)) warn = 'Okeyi atarsan <b>101 ceza</b> yazılır.';
+    else if (S.melds.some(m => Rules.canAttach(m, t, S.okey))) warn = 'Bu taş masadaki bir pere işlenebiliyor (işlek). Atarsan <b>101 ceza</b> yazılır.';
+    else if (S.takenJoker != null && S.hand.some(x => x.id === S.takenJoker)) warn = 'Yerden aldığın okeyi bu tur kullanmadın. Şimdi atarsan <b>101 ceza</b> yazılır.';
+    if (warn) {
+      renderGame();
+      return confirmBox('Emin misin?', warn, 'Yine de at', () => discard(id, true));
+    }
+  }
   sel = null;
   act({ type: 'discard', id });
+}
+
+// Genel açılır pencere (oyun güncellemeleri üzerine yazmasın diye kilitlenir)
+function openPanel(html, bind) {
+  leaving = true;
+  $('#modalBody').className = 'panel';
+  $('#modalBody').innerHTML = html;
+  $('#modal').classList.remove('hidden');
+  if (bind) bind();
+}
+function closePanel() {
+  leaving = false;
+  $('#modal').classList.add('hidden');
+  if (S && !S.lobby) renderModal();
+}
+function confirmBox(title, text, yes, onYes) {
+  openPanel(`<h2>${title}</h2><p>${text}</p><div class="row"><button class="grow" id="cbNo">Vazgeç</button><button class="danger grow" id="cbYes">${yes}</button></div>`, () => {
+    $('#cbNo').onclick = closePanel;
+    $('#cbYes').onclick = () => { closePanel(); onYes(); };
+  });
+}
+
+function openSettings() {
+  const items = [
+    ['sound', 'Ses', 'Sıra sana gelince, süre azalınca ve yığın biterken kısa sesler'],
+    ['vibrate', 'Titreşim', 'Telefonda sıra sana gelince titrer'],
+    ['autoSort', 'Yeni elde otomatik diz', 'Taşlar dağıtılınca en iyi seri dizilimi kurulur'],
+    ['confirmRisky', 'Riskli atışta sor', 'Okey, işlek taş ya da kullanılmamış alınan okey atılırken onay ister'],
+    ['shapes', 'Renk körlüğü desteği', 'Her rengin altındaki işaret farklı şekilde olur (● ■ ◆ ▲)'],
+  ];
+  openPanel(`<h2>Ayarlar</h2><div class="prefs">${items.map(([k, t, d]) =>
+    `<label class="check"><input type="checkbox" data-k="${k}" ${prefs[k] ? 'checked' : ''}><span><b>${t}</b><small>${d}</small></span></label>`).join('')}</div>
+    <div class="row" style="margin-top:14px"><button class="grow" id="pfHelp">❔ Nasıl oynanır</button><button class="primary grow" id="pfOk">Tamam</button></div>`, () => {
+    $('#modalBody').querySelectorAll('[data-k]').forEach(c => (c.onchange = () => { prefs[c.dataset.k] = c.checked; savePrefs(); if (S && !S.lobby) renderGame(); }));
+    $('#pfOk').onclick = closePanel;
+    $('#pfHelp').onclick = openHelp;
+  });
+}
+
+function openHelp() {
+  openPanel(`<h2>Nasıl oynanır?</h2><div class="help">
+    <h3>Amaç</h3><p>Taşlarını perlere dizip elini açmak, sonra hepsini yere bırakıp eli bitirmek. Oyun sonunda <b>en az puanı</b> olan kazanır.</p>
+    <h3>Sıra sende</h3><p>Önce bir taş çek: ortadaki <b>yığından</b> ya da soldaki oyuncunun attığı taşı <b>sol alttan</b> al (dokun ya da ıstakada bir yuvaya sürükle). Sonra bir taş at: taşı <b>sağ alttaki</b> alana sürükle ya da taşa iki kez dokun.</p>
+    <h3>Per ve açma</h3><p>Seri: aynı renk ardışık en az 3 taş (12-13-1 olmaz). Grup: aynı sayı farklı renk 3-4 taş. Istakada perlerin arasına bir boşluk bırak, puanı üstünde görünür. Toplam <b>101</b> ya da <b>5 çift</b> olunca "Elini aç". Okey (★) her taşın yerine geçer.</p>
+    <h3>İşleme</h3><p>Elini açtıktan sonra taş seç; uyduğu perler parlar. <b>+</b> başa/sona ekler, <b>Al</b> perdeki okeyi alır (okeyi o tur kullanmalısın). Kırmızı yıldızlı taşlar işlektir.</p>
+    <h3>Cezalar</h3><p>Okey atmak, işlek taş atmak, yandan alıp açamamak: 101. Elini açmadan biten elde 202. Okeyle, çiftten ya da elden bitirmek puanları ikiye katlar.</p>
+    <h3>Kısayollar (bilgisayar)</h3><p><kbd>Boşluk</kbd> yığından çek · <kbd>A</kbd> soldakini al · <kbd>S</kbd> seri diz · <kbd>C</kbd> çift diz · <kbd>Delete</kbd> seçili taşı at · <kbd>Enter</kbd> elini aç · <kbd>Esc</kbd> seçimi kaldır</p>
+  </div><div class="row" style="margin-top:12px"><button class="primary grow" id="hpOk">Anladım</button></div>`, () => { $('#hpOk').onclick = closePanel; });
 }
 function attach(id, meldId, choice) {
   if (!playing() || id == null) return;
@@ -875,6 +990,17 @@ function dropTargetAt(x, y) {
   return el.closest('[data-choice], [data-slot], [data-meld], [data-drop]');
 }
 
+// Yığından ya da sol alttaki taştan sürükleyerek (ya da dokunarak) çekme
+function canDrawNow() { return myTurn() && S.phase === 'draw'; }
+$('#pile').addEventListener('pointerdown', e => {
+  if (!S || S.lobby || !canDrawNow() || e.button > 0) return;
+  drag = { draw: 'pile', x: e.clientX, y: e.clientY, src: $('#pile'), moved: false, over: null };
+});
+$('#corner3').addEventListener('pointerdown', e => {
+  if (!S || S.lobby || !canDrawNow() || !$('#corner3').classList.contains('takeable') || e.button > 0) return;
+  drag = { draw: 'discard', x: e.clientX, y: e.clientY, src: $('#corner3 .tile') || $('#corner3'), moved: false, over: null };
+});
+
 $('#rack').addEventListener('pointerdown', e => {
   const t = e.target.closest('.tile[data-id]');
   if (!t || e.button > 0) return;
@@ -886,6 +1012,17 @@ window.addEventListener('pointermove', e => {
   if (!drag.moved) {
     if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 7) return;
     drag.moved = true;
+    if (drag.draw) {
+      // Çekilen taşın hayaleti: yığından ise ters taş, yandan ise o taş
+      const ref = $('#rack .slot') || drag.src;
+      const r0 = ref.getBoundingClientRect();
+      drag.ghost = drag.draw === 'pile' ? Object.assign(document.createElement('div'), { className: 'tile back' }) : drag.src.cloneNode(true);
+      drag.ghost.classList.add('ghost');
+      drag.ghost.style.width = r0.width + 'px';
+      drag.ghost.style.height = r0.height + 'px';
+      document.body.appendChild(drag.ghost);
+      document.body.classList.add('drawing');
+    } else {
     drag.src = document.querySelector(`#rack .tile[data-id="${drag.id}"]`) || drag.src;
     const r = drag.src.getBoundingClientRect();
     drag.ghost = drag.src.cloneNode(true);
@@ -898,6 +1035,7 @@ window.addEventListener('pointermove', e => {
     sel = null;
     renderMelds();
     if (playing()) renderCorner(0);
+    }
   }
   e.preventDefault();
   const g = drag.ghost;
@@ -914,6 +1052,19 @@ function endDrag(e) {
   if (!drag) return;
   const d = drag;
   drag = null;
+  if (d.draw) {
+    document.body.classList.remove('drawing');
+    const type = d.draw === 'pile' ? 'drawPile' : 'drawDiscard';
+    if (!d.moved) { if (e.type === 'pointerup' && canDrawNow()) act({ type }); return; }
+    d.ghost.remove();
+    d.over?.classList.remove('over');
+    const tgt = e.type === 'pointerup' ? dropTargetAt(e.clientX, e.clientY) : null;
+    const onRack = e.type === 'pointerup' && document.elementFromPoint(e.clientX, e.clientY)?.closest('#rack, .dock');
+    if (tgt?.dataset.slot != null) { pendingSlot = +tgt.dataset.slot; act({ type }); }
+    else if (onRack) act({ type });
+    else toast('Taşı çekmek için ıstakaya bırak');
+    return;
+  }
   if (!d.moved) {
     // Çift dokunma: at. Tek dokunma: seç / seçimi kaldır
     const now = Date.now();
@@ -947,11 +1098,16 @@ function endDrag(e) {
 window.addEventListener('pointerup', endDrag);
 window.addEventListener('pointercancel', endDrag);
 
+let hurryFor = null;
 // Süre halkası
 setInterval(() => {
   if (!S || S.lobby) return;
-  const p = S.deadline ? Math.max(0, Math.min(1, (S.deadline - Date.now()) / (S.turnMs || 45000))) : 1;
+  const left = S.deadline ? S.deadline - Date.now() : Infinity;
+  const p = S.deadline ? Math.max(0, Math.min(1, left / (S.turnMs || 45000))) : 1;
   document.querySelectorAll('.turn .ava').forEach(a => a.style.setProperty('--p', p));
+  const hurry = myTurn() && left < 10000;
+  document.body.classList.toggle('hurry', hurry);
+  if (hurry && hurryFor !== S.deadline) { hurryFor = S.deadline; beep([300, 300], 0.14, 'square'); buzz([80, 60, 80]); }
 }, 250);
 
 // ---------- Puan tablosu / el sonu ----------
@@ -1174,3 +1330,32 @@ function showBubble(seat, text) {
 }
 
 render();
+
+// ---------- Klavye kısayolları (bilgisayar) ----------
+document.addEventListener('keydown', e => {
+  if (!S || S.lobby || e.target.closest('input, textarea, select')) return;
+  if (e.key === 'Escape') { if (leaving) closePanel(); else { sel = null; renderGame(); } return; }
+  if (leaving || !$('#modal').classList.contains('hidden')) return;
+  const k = e.key.toLocaleLowerCase('tr');
+  if (k === ' ' && canDrawNow()) { e.preventDefault(); act({ type: 'drawPile' }); }
+  else if (k === 'a' && canDrawNow() && $('#corner3').classList.contains('takeable')) act({ type: 'drawDiscard' });
+  else if (k === 's') autoArrange('seri');
+  else if (k === 'c' || k === 'ç') autoArrange('cift');
+  else if ((k === 'delete' || k === 'backspace') && sel != null) { e.preventDefault(); discard(sel); }
+  else if (k === 'enter' && !document.querySelector('[data-act="open"]').disabled) doOpen();
+});
+
+// ---------- Hemen oyna ----------
+let quickStart = false;
+$('#btnQuick').onclick = () => {
+  const n = myName();
+  if (!n) return;
+  const r = roomList.find(x => x.permanent && x.free > 0) || roomList.find(x => x.status === 'bekliyor' && x.free > 0);
+  if (r) socket.emit('join', { code: r.code, name: n, token, avatar: myAvatar });
+  else { quickStart = true; socket.emit('create', { name: n, token, avatar: myAvatar }); }
+};
+socket.on('state', st => {
+  if (quickStart && st.lobby && st.isHost) { quickStart = false; socket.emit('start'); }
+});
+$('#btnHelpL').onclick = openHelp;
+$('#btnSettingsL').onclick = openSettings;
