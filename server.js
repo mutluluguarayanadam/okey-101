@@ -89,7 +89,7 @@ function schedule(room) {
     return;
   }
   if (automated(room, i)) {
-    room.timer = setTimeout(() => botStep(room), room.seats[i].isBot ? BOT_MS : AWAY_MS);
+    room.timer = setTimeout(() => botStep(room), room.seats[i].isBot ? Math.round(BOT_MS * (0.7 + Math.random() * (g.phase === 'play' ? 1.1 : 0.5))) : AWAY_MS);
   } else {
     room.deadline = Date.now() + turnMs(room);
     room.timer = setTimeout(() => {

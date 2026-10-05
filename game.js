@@ -48,7 +48,7 @@ class Game {
     this.indicator = deck.splice(idx, 1)[0];
     this.okey = R.okeyOf(this.indicator);
     this.starter = this.handNo % 4;
-    this.seats = [0, 1, 2, 3].map(() => ({ hand: [], opened: false, openType: null, openedAt: -1, openScore: 0, openPairs: 0, penalty: 0, discards: [] }));
+    this.seats = [0, 1, 2, 3].map(() => ({ hand: [], opened: false, openType: null, openedAt: -1, openScore: 0, openPairs: 0, penalty: 0, discards: [], picked: [] }));
     for (let i = 0; i < 4; i++) {
       const n = i === this.starter ? 22 : 21;
       this.seats[i].hand = deck.splice(0, n);
@@ -114,6 +114,7 @@ class Game {
     if (!t) return { err: 'Alınacak taş yok' };
     const me = this.seats[seat];
     me.hand.push(t);
+    me.picked.push(t); // herkesin gördüğü bilgi: kim yandan hangi taşı aldı
     this.phase = 'play';
     if (!me.opened) this.mustOpenWith = t.id;
     this.addLog(`${this.name(seat)} yerden ${R.tileName(t)} aldı`);
