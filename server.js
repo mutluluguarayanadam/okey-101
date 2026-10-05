@@ -17,6 +17,15 @@ const server = http.createServer(app);
 const io = new Server(server);
 const rooms = new Map();
 
+// Avatar: { e: emoji sırası, c: renk sırası } — liste istemcide, burada sadece aralık kontrolü
+const AVATAR_E = 24, AVATAR_C = 8;
+function cleanAvatar(a) {
+  if (!a || typeof a !== 'object') return null;
+  const e = +a.e, c = +a.c;
+  if (!Number.isInteger(e) || !Number.isInteger(c) || e < 0 || e >= AVATAR_E || c < 0 || c >= AVATAR_C) return null;
+  return { e, c };
+}
+
 const clean = (s, n = 16) => String(s || '').replace(/[<>&"']/g, '').trim().slice(0, n);
 
 function newCode() {
@@ -26,7 +35,7 @@ function newCode() {
   return c;
 }
 
-const emptySeat = () => ({ name: null, token: null, isBot: false, connected: false, socketId: null });
+const emptySeat = () => ({ name: null, token: null, isBot: false, connected: false, socketId: null, avatar: null, awaySince: null });
 const automated = (room, i) => room.seats[i].isBot || !room.seats[i].connected;
 const humansOnline = room => room.seats.some(s => !s.isBot && s.connected);
 
@@ -39,6 +48,8 @@ function roomSummary(room) {
   const free = room.seats.filter(x => !x.token).length; // boş ya da botun oturduğu koltuk
   return {
     code: room.code,
+    permanent: !!room.permanent,
+    title: room.title || null,
     host: host ? host.name : room.seats.find(x => x.name && !x.isBot)?.name || '?',
     humans, free,
     mode: room.opts.mode, hands: room.opts.hands, katlamali: room.opts.katlamali,
@@ -56,9 +67,9 @@ function broadcastRooms() {
 }
 function listRooms() {
   return [...rooms.values()]
-    .filter(r => r.opts.listed && humansOnline(r) && r.seats.some(x => !x.token))
+    .filter(r => r.opts.listed && (r.permanent || humansOnline(r)) && r.seats.some(x => !x.token))
     .map(roomSummary)
-    .sort((a, b) => (a.status === 'bekliyor' ? 0 : 1) - (b.status === 'bekliyor' ? 0 : 1));
+    .sort((a, b) => (a.permanent ? 1 : 0) - (b.permanent ? 1 : 0) || (a.status === 'bekliyor' ? 0 : 1) - (b.status === 'bekliyor' ? 0 : 1));
 }
 const turnMs = room => room.opts.turnSec * 1000;
 
@@ -80,7 +91,7 @@ function lobbyView(room, i) {
     you: i,
     isHost: room.seats[i].token === room.hostToken,
     opts: room.opts,
-    seats: room.seats.map(s => (s.name ? { name: s.name, bot: s.isBot, connected: s.connected } : null)),
+    seats: room.seats.map(s => (s.name ? { name: s.name, bot: s.isBot, connected: s.connected, avatar: s.avatar } : null)),
   };
 }
 
@@ -89,7 +100,7 @@ function send(room) {
   room.seats.forEach((s, i) => {
     if (!s.socketId || !s.connected) return;
     const v = room.game
-      ? Object.assign(room.game.view(i), { code: room.code, deadline: room.deadline, turnMs: turnMs(room), isHost: s.token === room.hostToken })
+      ? Object.assign(room.game.view(i), { code: room.code, deadline: room.deadline, turnMs: turnMs(room), isHost: s.token === room.hostToken, permanent: !!room.permanent, title: room.title || null })
       : lobbyView(room, i);
     io.to(s.socketId).emit('state', v);
   });
@@ -98,7 +109,8 @@ function send(room) {
 function schedule(room) {
   const g = room.game;
   if (!g) return;
-  if (!humansOnline(room)) {
+  const alive = humansOnline(room) || (room.permanent && io.engine.clientsCount > 0);
+  if (!alive) {
     // Masada kimse kalmadıysa botlar boşuna oynamasın
     clearTimeout(room.timer);
     room.timerKey = null;
@@ -117,6 +129,7 @@ function schedule(room) {
 
   if (g.phase === 'ended') {
     if (!g.over) room.timer = setTimeout(() => { g.startHand(); update(room); }, 10000);
+    else if (room.permanent) room.timer = setTimeout(() => { newBotGame(room); update(room); }, 12000);
     return;
   }
   if (automated(room, i)) {
@@ -153,10 +166,10 @@ function update(room) {
   send(room);
 }
 
-function sit(room, i, socket, name, token) {
+function sit(room, i, socket, name, token, avatar) {
   const s = room.seats[i];
   if (s.socketId && s.socketId !== socket.id) io.to(s.socketId).emit('kicked');
-  Object.assign(s, { name, token, isBot: false, connected: true, socketId: socket.id });
+  Object.assign(s, { name, token, isBot: false, connected: true, socketId: socket.id, avatar: avatar || s.avatar || null, awaySince: null });
   socket.data.code = room.code;
   socket.data.seat = i;
   socket.leave('lobby');
@@ -183,7 +196,7 @@ io.on('connection', socket => {
     if (!name || !token) return socket.emit('err', 'Önce adını yaz');
     const room = { code: newCode(), hostToken: token, seats: [0, 1, 2, 3].map(emptySeat), game: null, opts: cleanOpts(a), timer: null, timerKey: null, deadline: null, lastHuman: Date.now(), lastChat: {} };
     rooms.set(room.code, room);
-    sit(room, 0, socket, name, token);
+    sit(room, 0, socket, name, token, cleanAvatar(a.avatar));
     send(room);
   });
 
@@ -198,10 +211,10 @@ io.on('connection', socket => {
       if (!name) return socket.emit('err', 'Önce adını yaz');
       i = room.seats.findIndex(s => !s.token); // boş koltuk ya da botun koltuğu
       if (i < 0) return socket.emit('err', 'Oda dolu');
-      sit(room, i, socket, name, token);
+      sit(room, i, socket, name, token, cleanAvatar(a.avatar));
       if (room.game) room.game.addLog(`${name} masaya oturdu`);
     } else {
-      sit(room, i, socket, room.seats[i].name, token);
+      sit(room, i, socket, room.seats[i].name, token, cleanAvatar(a.avatar));
     }
     update(room);
   });
@@ -321,6 +334,9 @@ io.on('connection', socket => {
     const wasHost = s.token === room.hostToken;
     if (!room.game) {
       Object.assign(s, emptySeat());
+    } else if (room.permanent) {
+      room.game.addLog(`${s.name} masadan kalktı`);
+      giveSeatToBot(room, i);
     } else {
       room.game.addLog(`${s.name} oyundan çıktı, yerine bot oynuyor`);
       Object.assign(s, { token: null, isBot: true, connected: true, socketId: null });
@@ -332,7 +348,7 @@ io.on('connection', socket => {
     socket.emit('leftRoom');
     socket.join('lobby');
     socket.emit('rooms', listRooms());
-    if (!room.seats.some(x => x.token)) {
+    if (!room.permanent && !room.seats.some(x => x.token)) {
       clearTimeout(room.timer);
       rooms.delete(room.code);
       broadcastRooms();
@@ -357,6 +373,7 @@ io.on('connection', socket => {
       }
     } else {
       room.game.addLog(`${s.name} ayrıldı, yerine bot oynuyor`);
+      s.awaySince = Date.now();
     }
     update(room);
   });
@@ -366,6 +383,16 @@ io.on('connection', socket => {
 setInterval(() => {
   const now = Date.now();
   for (const [code, room] of rooms) {
+    if (room.permanent) {
+      room.seats.forEach((x, i) => {
+        if (x.token && !x.connected && x.awaySince && now - x.awaySince > 2 * 60 * 1000) {
+          room.game && room.game.addLog(`${x.name} uzun süre dönmedi, koltuk bota geçti`);
+          giveSeatToBot(room, i);
+          update(room);
+        }
+      });
+      continue;
+    }
     if (humansOnline(room)) room.lastHuman = now;
     else if (now - room.lastHuman > ROOM_TTL) {
       clearTimeout(room.timer);
@@ -374,5 +401,39 @@ setInterval(() => {
     }
   }
 }, 60 * 1000);
+
+// ---------------- Sürekli oynayan bot masaları ----------------
+const BOT_NAMES = ['Ayşe', 'Kemal', 'Zeynep', 'Murat', 'Elif', 'Hasan', 'Fatma', 'Can', 'Selin', 'Emre', 'Derya', 'Okan'];
+let botNameIdx = 0;
+const nextBotName = () => 'Bot ' + BOT_NAMES[botNameIdx++ % BOT_NAMES.length];
+
+function giveSeatToBot(room, i) {
+  Object.assign(room.seats[i], { name: nextBotName(), token: null, isBot: true, connected: true, socketId: null, avatar: null, awaySince: null });
+}
+
+function newBotGame(room) {
+  room.game = new Game(room.seats, room.opts);
+  room.game.startHand();
+  room.timerKey = null;
+}
+
+function createBotTable(code, title, opts) {
+  const room = {
+    code, title, permanent: true, hostToken: null,
+    seats: [0, 1, 2, 3].map(emptySeat), game: null,
+    opts: cleanOpts(opts), timer: null, timerKey: null, deadline: null, lastHuman: Date.now(), lastChat: {},
+  };
+  room.seats.forEach((_, i) => giveSeatToBot(room, i));
+  rooms.set(code, room);
+  newBotGame(room);
+}
+createBotTable('BOT01', 'Bot Masası 1', { mode: 'tekli', hands: 3, turnSec: 45 });
+createBotTable('BOT02', 'Bot Masası 2', { mode: 'tekli', hands: 3, turnSec: 45, katlamali: true });
+createBotTable('BOT03', 'Eşli Bot Masası', { mode: 'esli', hands: 3, turnSec: 45 });
+
+// Siteye biri girince duraklamış bot masaları yeniden başlasın
+io.on('connection', () => {
+  for (const room of rooms.values()) if (room.permanent && room.timerKey == null) update(room);
+});
 
 server.listen(PORT, () => console.log('101 Okey sunucusu çalışıyor: http://localhost:' + PORT));

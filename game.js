@@ -417,6 +417,7 @@ class Game {
       players: this.seats.map((s, i) => ({
         name: this.info[i].name,
         bot: this.info[i].isBot,
+        avatar: this.info[i].avatar || null,
         connected: this.info[i].connected,
         count: s.hand.length,
         opened: s.opened,

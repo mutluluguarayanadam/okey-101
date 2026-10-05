@@ -50,6 +50,10 @@ Not: Ücretsiz sunucu 15 dakika kimse bağlanmazsa uyur; ilk girişte açılmas�
 - Belirlenen el sayısı sonunda en düşük puan kazanır.
 
 ## Giriş
+Adının yanındaki yuvarlağa dokunup avatarını seçebilirsin (tarayıcında saklanır).
+
+**Bot masaları:** Sunucuda sürekli oynayan 3 bot masası vardır (2 tekli, 1 eşli). Listeden birine dokunup bir botun yerine oturursun ve oyun kaldığı yerden devam eder. Kalkınca koltuğa yine bot geçer; bağlantın kopar ve 2 dakika dönmezsen koltuk bota verilir. Bot masaları sitede kimse yokken bekler, biri girince devam eder.
+
 Açılışta açık masalar listelenir; birine dokunup oturabilir ya da yeni oda kurabilirsin. Oyundaki masalarda botun oturduğu koltuğa geçebilirsin. Oda ayarlarından masayı listeden gizleyebilirsin.
 
 ## Oda ayarları (oda sahibi, oyun başlamadan)

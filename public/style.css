@@ -498,3 +498,28 @@ button.danger { background: linear-gradient(#f08a72, #d9553a); color: #fff; box-
 .meld.can .ghostslot:hover { background: rgba(245,192,68,.45); }
 
 #btnCreate { white-space: nowrap; }
+
+/* Avatarlar */
+.avface { display: inline-grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; font-size: 1.4em; line-height: 1; }
+.avapick { width: 52px; height: 52px; padding: 0; border-radius: 50%; flex: none; background: none; box-shadow: 0 0 0 3px var(--gold); font-size: 22px; align-self: flex-end; }
+.avbig { width: 84px; height: 84px; margin: 0 auto 14px; font-size: 34px; }
+.avgrid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.avopt { font-size: 24px; padding: 6px 0; background: rgba(0,0,0,.25); box-shadow: none; }
+.avopt.on { background: var(--gold); }
+.avcolors { display: flex; gap: 8px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+.avcol { width: 32px; height: 32px; padding: 0; border-radius: 50%; box-shadow: none; }
+.avcol.on { box-shadow: 0 0 0 3px var(--ivory); }
+.ava.emo { font-size: 22px; }
+.short .ava.emo { font-size: 16px; }
+.mechip .ava.emo { font-size: 20px; }
+.wseat .avface { width: 34px; height: 34px; font-size: 18px; }
+.roomcard.botroom { border-style: dashed; }
+#gCode { white-space: nowrap; }
+
+.idrow { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: end; }
+.idrow .field input { min-width: 0; width: 100%; }
+@media (max-width: 480px) {
+  .idrow { grid-template-columns: auto minmax(0, 1fr); }
+  .idrow #btnCreate { grid-column: 1 / -1; }
+  .lobbypanel { padding: 20px 16px; }
+}

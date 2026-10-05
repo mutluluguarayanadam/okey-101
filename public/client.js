@@ -3,6 +3,15 @@ const $ = s => document.querySelector(s);
 const COLORS = ['var(--red)', 'var(--yellow)', 'var(--blue)', 'var(--black)'];
 const AVA = ['#c0392b', '#2e86c1', '#c47f0e', '#7d3c98'];
 const COLS = 15, SLOTS = 30;
+// Avatarlar: emoji + arka plan rengi (sunucu sadece sıra numarasını tutar)
+const AV_E = ['🦊', '🐻', '🐼', '🐯', '🦁', '🐸', '🐵', '🐧', '🦉', '🐺', '🐱', '🐶', '🐰', '🐨', '🦄', '🐙', '🐢', '🦅', '🐝', '🐞', '🌻', '⭐', '🍀', '🔥'];
+const AV_C = ['#c0392b', '#2e86c1', '#c47f0e', '#7d3c98', '#1e8449', '#d35400', '#34495e', '#b03a6e'];
+let myAvatar = (() => {
+  try { const a = JSON.parse(localStorage.getItem('okey_avatar')); if (a && AV_E[a.e] && AV_C[a.c]) return a; } catch (e) {}
+  return { e: Math.floor(Math.random() * AV_E.length), c: Math.floor(Math.random() * AV_C.length) };
+})();
+localStorage.setItem('okey_avatar', JSON.stringify(myAvatar));
+const avatarFace = a => `<span class="avface" style="background:${AV_C[a.c]}">${AV_E[a.e]}</span>`;
 const TEAM = ['Takım 1', 'Takım 2'];
 const QUICK = ['Merhaba 👋', 'Kolay gelsin', 'Hadi bekliyoruz 🙂', 'Güzel hamle 👏', 'Şansına küs 😅', 'Eyvallah', 'Tebrikler 🎉', 'İyi oyunlar'];
 
@@ -34,9 +43,29 @@ function myName() {
   localStorage.setItem('okey_name', n);
   return n;
 }
-$('#btnCreate').onclick = () => { const n = myName(); if (n) socket.emit('create', { name: n, token }); };
-$('#btnJoin').onclick = () => { const n = myName(); if (n) socket.emit('join', { code: $('#code').value, name: n, token }); };
+$('#btnCreate').onclick = () => { const n = myName(); if (n) socket.emit('create', { name: n, token, avatar: myAvatar }); };
+$('#btnJoin').onclick = () => { const n = myName(); if (n) socket.emit('join', { code: $('#code').value, name: n, token, avatar: myAvatar }); };
 $('#btnRefresh').onclick = () => socket.emit('rooms');
+function paintAvatarBtn() { $('#btnAvatar').innerHTML = avatarFace(myAvatar); }
+paintAvatarBtn();
+$('#btnAvatar').onclick = () => {
+  const draw = () => {
+    $('#modalBody').innerHTML = `<h2>Avatarını seç</h2>
+      <div class="avbig">${avatarFace(myAvatar)}</div>
+      <div class="avgrid">${AV_E.map((e, i) => `<button class="avopt ${i === myAvatar.e ? 'on' : ''}" data-e="${i}">${e}</button>`).join('')}</div>
+      <div class="avcolors">${AV_C.map((c, i) => `<button class="avcol ${i === myAvatar.c ? 'on' : ''}" data-c="${i}" style="background:${c}" aria-label="Renk ${i + 1}"></button>`).join('')}</div>
+      <div class="row" style="margin-top:14px"><button class="primary grow" id="avOk">Tamam</button></div>`;
+    $('#modalBody').querySelectorAll('[data-e]').forEach(b => (b.onclick = () => { myAvatar.e = +b.dataset.e; draw(); }));
+    $('#modalBody').querySelectorAll('[data-c]').forEach(b => (b.onclick = () => { myAvatar.c = +b.dataset.c; draw(); }));
+    $('#avOk').onclick = () => {
+      localStorage.setItem('okey_avatar', JSON.stringify(myAvatar));
+      paintAvatarBtn();
+      $('#modal').classList.add('hidden');
+    };
+  };
+  $('#modal').classList.remove('hidden');
+  draw();
+};
 let roomList = [];
 socket.on('rooms', list => { roomList = list || []; renderRooms(); });
 
@@ -47,6 +76,13 @@ function renderRooms() {
     return;
   }
   box.innerHTML = roomList.map(r => {
+    if (r.permanent) {
+      return `<button class="roomcard botroom" data-code="${esc(r.code)}">
+        <span class="rc-main"><b>🤖 ${esc(r.title)}</b> <span class="badge open">Sürekli oyun</span></span>
+        <span class="rc-sub">${r.mode === 'esli' ? 'Eşli' : 'Tekli'}${r.katlamali ? ' · Katlamalı' : ''} · ${r.humans ? r.humans + ' kişi oynuyor · ' : ''}${r.free} koltuk botta</span>
+        <span class="rc-go">Otur ›</span>
+      </button>`;
+    }
     const st = r.status === 'bekliyor' ? '<span class="badge open">Bekliyor</span>'
       : r.status === 'oyunda' ? `<span class="badge">Oyunda · ${r.hand}. el</span>` : '<span class="badge">Bitti</span>';
     const seats = r.status === 'bekliyor' ? `${4 - r.free}/4 oyuncu` : `${r.free} koltukta bot var`;
@@ -58,7 +94,7 @@ function renderRooms() {
   }).join('');
   box.querySelectorAll('.roomcard').forEach(b => (b.onclick = () => {
     const n = myName();
-    if (n) socket.emit('join', { code: b.dataset.code, name: n, token });
+    if (n) socket.emit('join', { code: b.dataset.code, name: n, token, avatar: myAvatar });
   }));
 }
 renderRooms();
@@ -92,7 +128,7 @@ soundIcon();
 socket.on('connect', () => {
   $('#netbar').classList.add('hidden');
   const c = localStorage.getItem('okey_room');
-  if (c) socket.emit('join', { code: c, token, auto: true });
+  if (c) socket.emit('join', { code: c, token, auto: true, avatar: myAvatar });
   else if (S) goLobby('Oda kapanmış. Yeni oda kurabilirsin.');
 });
 socket.on('disconnect', () => {
@@ -219,7 +255,7 @@ function renderWaiting() {
   const pos = ['b', 'r', 't', 'l'];
   $('#wTable').innerHTML = '<div class="felt"></div>' + S.seats.map((x, i) => {
     const team = esli ? `<small class="tbadge t${i % 2}">${TEAM[i % 2]}</small>` : '';
-    if (x) return `<div class="wseat p${pos[i]} ${i === S.you ? 'me' : ''}"><b>${esc(x.name)}${i === S.you ? ' (sen)' : ''}</b>${team}</div>`;
+    if (x) return `<div class="wseat p${pos[i]} ${i === S.you ? 'me' : ''}">${x.avatar ? avatarFace(x.avatar) : ''}<b>${esc(x.name)}${i === S.you ? ' (sen)' : ''}</b>${team}</div>`;
     return `<button class="wseat p${pos[i]} empty" data-sit="${i}">Buraya otur${team}</button>`;
   }).join('');
   $('#wTable').querySelectorAll('[data-sit]').forEach(b => (b.onclick = () => socket.emit('sit', +b.dataset.sit)));
@@ -459,7 +495,7 @@ function moveTile(id, target) {
 // ---------- Oyun ekranı ----------
 function renderGame() {
   syncHand();
-  $('#gCode').textContent = S.code;
+  $('#gCode').textContent = S.permanent ? '🤖 ' + S.title : S.code;
   if (esli()) {
     const us = S.players[S.you].total + S.players[(S.you + 2) % 4].total;
     const them = S.players[(S.you + 1) % 4].total + S.players[(S.you + 3) % 4].total;
@@ -502,7 +538,9 @@ function renderStatus() {
 function avaHtml(abs) {
   const p = S.players[abs];
   const team = esli() ? ` team t${abs % 2}` : '';
-  return `<div class="ava${!p.bot && !p.connected ? ' away' : ''}${team}" style="--c:${AVA[abs]}">${p.bot ? '🤖' : esc(initials(p.name))}</div>`;
+  const bg = p.avatar ? AV_C[p.avatar.c] : AVA[abs];
+  const face = p.bot ? '🤖' : p.avatar ? AV_E[p.avatar.e] : esc(initials(p.name));
+  return `<div class="ava${!p.bot && !p.connected ? ' away' : ''}${team}${p.avatar && !p.bot ? ' emo' : ''}" style="--c:${bg}">${face}</div>`;
 }
 
 function renderPlayer(el, abs) {
@@ -968,7 +1006,8 @@ function renderModal() {
   html += '<div id="revealed"></div>';
   if (!ended) html += `<details><summary class="muted">Oyun akışı</summary><ul class="loglist">${S.log.slice().reverse().map(l => `<li>${esc(l)}</li>`).join('')}</ul></details>`;
   html += '<div class="row" style="margin-top:14px">';
-  if (S.over) html += '<button class="primary grow" id="btnNew">Yeni oyun</button>';
+  if (S.over && S.permanent) html += '<p class="muted grow">Yeni oyun birkaç saniye içinde kendiliğinden başlayacak.</p>';
+  else if (S.over) html += '<button class="primary grow" id="btnNew">Yeni oyun</button>';
   if (S.over) html += '<button class="grow" id="btnMenu">Ana menü</button>';
   if (!ended) html += '<button class="grow" id="btnClose">Kapat</button>';
   html += '</div>';
