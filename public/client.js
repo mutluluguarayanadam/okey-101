@@ -219,14 +219,27 @@ function show(id) {
 }
 
 // Taş boyunu ekranın gerçek ölçüsüne göre hesapla (her telefonda ıstaka tam sığsın)
+// Telefon yatayda (kısa ekran) üst çubuk ve düğmeler sağdaki tek sütuna taşınır
+function placeControls(short) {
+  const side = $('#side'), top = $('.topbar'), dock = $('.dock');
+  const status = $('#status'), tb = $('.tbtns'), bar = $('.dockbar');
+  if (short) {
+    if (tb.parentNode !== side) side.append(tb, status, bar);
+  } else if (tb.parentNode !== top) {
+    top.append(status, tb);
+    dock.insertBefore(bar, $('#rack'));
+  }
+}
+
 function fitLayout() {
   const vw = window.innerWidth, vh = window.innerHeight;
   const short = vw > vh && vh < 560;
   document.body.classList.toggle('short', short);
+  placeControls(short);
   const gap = vw < 700 ? 2 : 3;
-  const bar = short ? Math.round(Math.min(150, Math.max(104, vw * 0.17))) : 0;
-  const byW = (vw - bar - (short ? 30 : 34) - 14 * gap) / 15;
-  const byH = short ? (vh * 0.34) / 2.9 : vh * 0.125;
+  const bar = short ? Math.round(Math.min(140, Math.max(108, vw * 0.15))) : 0;
+  const byW = (vw - bar - (short ? 26 : 34) - 14 * gap) / 15;
+  const byH = short ? (vh * 0.37) / 2.85 : vh * 0.125;
   const tw = Math.max(16, Math.min(54, byW, byH));
   const root = document.documentElement.style;
   root.setProperty('--tw', tw.toFixed(1) + 'px');
@@ -537,10 +550,11 @@ function renderStatus() {
 
 function avaHtml(abs) {
   const p = S.players[abs];
+  const crown = leaders().includes(abs) ? '<i class="crown" title="Önde">👑</i>' : '';
   const team = esli() ? ` team t${abs % 2}` : '';
   const bg = p.avatar ? AV_C[p.avatar.c] : AVA[abs];
   const face = p.bot ? '🤖' : p.avatar ? AV_E[p.avatar.e] : esc(initials(p.name));
-  return `<div class="ava${!p.bot && !p.connected ? ' away' : ''}${team}${p.avatar && !p.bot ? ' emo' : ''}" style="--c:${bg}">${face}</div>`;
+  return `<div class="ava${!p.bot && !p.connected ? ' away' : ''}${team}${p.avatar && !p.bot ? ' emo' : ''}" style="--c:${bg}">${face}${crown}</div>`;
 }
 
 function renderPlayer(el, abs) {
@@ -552,7 +566,7 @@ function renderPlayer(el, abs) {
   if (p.opened) tags.push(`<span class="badge open">${p.openType === 'cift' ? 'Çift' : 'Açtı'}</span>`);
   if (p.penalty) tags.push(`<span class="badge off">+${p.penalty}</span>`);
   el.innerHTML = avaHtml(abs) +
-    `<div class="pinfo"><b>${esc(p.name)}</b><small>${p.count} taş · ${p.total} puan</small><div class="tags">${tags.join('')}</div></div>`;
+    `<div class="pinfo"><b>${esc(p.name)}</b><small>${p.count} taş<span class="tot"> · ${p.total} puan</span></small><div class="tags">${tags.join('')}</div></div>`;
 }
 
 // Köşe r: (sen + r) numaralı oyuncunun attığı taş. 3 = soldaki (alabilirsin), 0 = senin atış alanın
@@ -968,6 +982,86 @@ function renderDiscards() {
   $('#modalBody').classList.add('wide');
 }
 
+// Küçük avatar (sonuç ekranları için)
+function avaMini(i) {
+  const p = S.players[i];
+  if (p.bot) return '<span class="amini" style="background:#555">🤖</span>';
+  if (p.avatar) return `<span class="amini" style="background:${AV_C[p.avatar.c]}">${AV_E[p.avatar.e]}</span>`;
+  return `<span class="amini" style="background:${AVA[i]}">${esc(initials(p.name))}</span>`;
+}
+const pname = i => (i === S.you ? 'Sen' : esc(S.players[i].name));
+
+// Önde olan(lar): en az toplam puan (eşli oyunda takım toplamı)
+function leaders() {
+  if (!S || !S.history || !S.history.length) return [];
+  if (esli()) {
+    const t = [S.players[0].total + S.players[2].total, S.players[1].total + S.players[3].total];
+    if (t[0] === t[1]) return [];
+    return t[0] < t[1] ? [0, 2] : [1, 3];
+  }
+  const min = Math.min(...S.players.map(p => p.total));
+  const w = [0, 1, 2, 3].filter(i => S.players[i].total === min);
+  return w.length === 4 ? [] : w;
+}
+
+// El / oyun sonu: kazanan büyük ve net, sonra sıralı tablo
+function resultHtml() {
+  const r = S.result;
+  const all = [0, 1, 2, 3];
+  let html = '';
+  if (S.over && r.final) {
+    const w = r.final.winners;
+    const mine = w.includes(S.you);
+    html += `<div class="rbanner final ${mine ? 'me' : ''}"><div class="trophy">🏆</div><div>
+      <small>${esli() && w.length === 2 ? 'Oyunu kazanan takım' : 'Oyunu kazanan'}</small>
+      <div class="rnames">${w.map(i => avaMini(i) + '<b>' + pname(i) + '</b>').join('<span class="amp">&</span>')}</div>
+      ${mine ? '<div class="congrats">Tebrikler! 🎉</div>' : ''}</div></div>`;
+  }
+  // Bu elin kazananı
+  let handWin, sub;
+  if (r.void) { handWin = []; sub = 'Dört oyuncu da çift açtı, el iptal edildi.'; }
+  else if (r.winner != null) {
+    handWin = esli() ? [r.winner, (r.winner + 2) % 4] : [r.winner];
+    sub = `${pname(r.winner)} eli bitirdi` + (r.mult > 1 ? ` · puanlar x${r.mult}` : '');
+    if (r.okeyFinish) sub += ' · okey atarak';
+  } else if (esli()) {
+    const t0 = r.scores[0] + r.scores[2], t1 = r.scores[1] + r.scores[3];
+    handWin = t0 === t1 ? [] : t0 < t1 ? [0, 2] : [1, 3];
+    sub = `Yığın bitti · takım cezaları ${Math.min(t0, t1)} / ${Math.max(t0, t1)}`;
+  } else {
+    const best = Math.min(...r.scores);
+    handWin = all.filter(i => r.scores[i] === best);
+    sub = `Yığın bitti · en az ceza ${best}`;
+  }
+  html += `<div class="rbanner hand"><div class="trophy">${r.void ? '↺' : '🥇'}</div><div>
+    <small>${S.handIndex}. elin ${handWin.length > 1 && !esli() ? 'en iyileri' : 'kazananı'}</small>
+    <div class="rnames">${handWin.length ? handWin.map(i => avaMini(i) + '<b>' + pname(i) + '</b>').join('<span class="amp">&</span>') : '—'}</div>
+    <div class="rsub">${sub}</div></div></div>`;
+
+  // Sıralı tablo: oyun bittiyse toplama, değilse bu ele göre
+  // Eşli oyunda sıralama takım bazında: aynı takımın iki oyuncusu aynı madalyayı alır
+  const teamKey = i => (S.over ? S.players[i].total + S.players[(i + 2) % 4].total : r.scores[i] + r.scores[(i + 2) % 4]);
+  const key = i => (esli() ? teamKey(i) : S.over ? S.players[i].total : r.scores[i]);
+  const rows = all.slice().sort((a, b) => key(a) - key(b) || (a % 2) - (b % 2) || (S.over ? S.players[a].total - S.players[b].total : r.scores[a] - r.scores[b]));
+  const medal = ['🥇', '🥈', '🥉', '4.'];
+  html += '<table class="scores rtable"><tr><th></th><th>Oyuncu</th><th>Bu el</th><th>Toplam</th></tr>';
+  let rank = 0;
+  rows.forEach((i, k) => {
+    if (k > 0 && key(i) !== key(rows[k - 1])) rank = esli() ? 1 : k;
+    const team = esli() ? `<span class="tdot t${i % 2}"></span>` : '';
+    html += `<tr class="${i === S.you ? 'me' : ''} ${handWin.includes(i) ? 'win' : ''}">
+      <td class="rk">${medal[rank]}</td><td class="nm">${avaMini(i)}${team}${pname(i)}</td>
+      <td>${r.scores[i] > 0 ? '+' : ''}${r.scores[i]}</td><td><b>${S.players[i].total}</b></td></tr>`;
+  });
+  html += '</table>';
+  if (esli()) {
+    const us = S.players[S.you].total + S.players[(S.you + 2) % 4].total;
+    const them = S.players[(S.you + 1) % 4].total + S.players[(S.you + 3) % 4].total;
+    html += `<p class="teamsum">Biz <b>${us}</b> · Onlar <b>${them}</b></p>`;
+  }
+  return html;
+}
+
 function renderModal() {
   const modal = $('#modal');
   if (leaving) return;
@@ -978,48 +1072,46 @@ function renderModal() {
     renderDiscards();
     return;
   }
-  const ended = S && !S.lobby && S.phase === 'ended' && S.result;
+  const ended = endedNow;
   if (!S || S.lobby || (!ended && !scoresOpen)) { modal.classList.add('hidden'); return; }
   modal.classList.remove('hidden');
-  const r = S.result;
   const seats = [0, 1, 2, 3].map(i => (S.you + i) % 4);
-  let html = ended ? `<h2>${S.over ? 'Oyun bitti' : r.void ? 'El iptal' : 'El bitti'}</h2><p>${esc(r.reason)}</p>` : '<h2>Puanlar</h2>';
-
-  if (S.over && r.final) {
-    const w = r.final.winners.map(i => esc(S.players[i].name));
-    html += esli() && r.final.winners.length === 2
-      ? `<p class="winner">Kazanan takım: <b>${w.join(' ve ')}</b>${r.final.winners.includes(S.you) ? ' 🎉' : ''}</p>`
-      : `<p class="winner">Kazanan: <b>${w.join(', ')}</b>${r.final.winners.includes(S.you) ? ' 🎉' : ''}</p>`;
+  let html = '';
+  if (ended) {
+    html += resultHtml();
+    html += '<details class="revealbox"><summary>Ellerde kalan taşlar</summary><div id="revealed"></div></details>';
+  } else {
+    html += '<h2>Puanlar</h2>';
+    const cols = esli() ? [[S.you, (S.you + 2) % 4], [(S.you + 1) % 4, (S.you + 3) % 4]] : seats.map(i => [i]);
+    const head = esli() ? ['Biz', 'Onlar'] : seats.map(i => (i === S.you ? 'Sen' : S.players[i].name));
+    html += '<div class="tablewrap"><table class="scores"><tr><th>El</th>' + head.map(h => `<th>${esc(h)}</th>`).join('') + '</tr>';
+    S.history.forEach(row => {
+      html += `<tr><td>${row.hand}${row.mult > 1 ? ` <small>x${row.mult}</small>` : ''}</td>` + cols.map(c => `<td>${c.reduce((a, i) => a + row.scores[i], 0)}</td>`).join('') + '</tr>';
+    });
+    const tot = cols.map(c => c.reduce((a, i) => a + S.players[i].total, 0));
+    const best = Math.min(...tot);
+    html += '<tr class="total"><td>Toplam</td>' + tot.map(t => `<td class="${S.history.length && t === best ? 'lead' : ''}">${t}${S.history.length && t === best ? ' 👑' : ''}</td>`).join('') + '</tr></table></div>';
+    html += `<details><summary class="muted">Oyun akışı</summary><ul class="loglist">${S.log.slice().reverse().map(l => `<li>${esc(l)}</li>`).join('')}</ul></details>`;
   }
-
-  // Çetele: her el ayrı satır
-  const cols = esli() ? [[S.you, (S.you + 2) % 4], [(S.you + 1) % 4, (S.you + 3) % 4]] : seats.map(i => [i]);
-  const head = esli() ? ['Biz', 'Onlar'] : seats.map(i => (i === S.you ? 'Sen' : S.players[i].name));
-  html += '<div class="tablewrap"><table class="scores"><tr><th>El</th>' + head.map(h => `<th>${esc(h)}</th>`).join('') + '</tr>';
-  S.history.forEach(row => {
-    html += `<tr><td>${row.hand}${row.mult > 1 ? ` <small>x${row.mult}</small>` : ''}</td>` + cols.map(c => `<td>${c.reduce((a, i) => a + row.scores[i], 0)}</td>`).join('') + '</tr>';
-  });
-  const tot = cols.map(c => c.reduce((a, i) => a + S.players[i].total, 0));
-  const best = Math.min(...tot);
-  html += '<tr class="total"><td>Toplam</td>' + tot.map(t => `<td class="${S.history.length && t === best ? 'lead' : ''}">${t}</td>`).join('') + '</tr></table></div>';
-
-  html += '<div id="revealed"></div>';
-  if (!ended) html += `<details><summary class="muted">Oyun akışı</summary><ul class="loglist">${S.log.slice().reverse().map(l => `<li>${esc(l)}</li>`).join('')}</ul></details>`;
-  html += '<div class="row" style="margin-top:14px">';
+  html += '<div class="row" style="margin-top:12px">';
   if (S.over && S.permanent) html += '<p class="muted grow">Yeni oyun birkaç saniye içinde kendiliğinden başlayacak.</p>';
   else if (S.over) html += '<button class="primary grow" id="btnNew">Yeni oyun</button>';
+  else if (ended) html += '<p class="muted grow">Sonraki el birazdan başlıyor…</p>';
   if (S.over) html += '<button class="grow" id="btnMenu">Ana menü</button>';
   if (!ended) html += '<button class="grow" id="btnClose">Kapat</button>';
   html += '</div>';
   $('#modalBody').innerHTML = html;
+  $('#modalBody').classList.toggle('result', !!ended);
+  $('#modalBody').classList.toggle('two', !!(ended && S.over));
 
   if (ended) {
+    const r = S.result;
     const rv = $('#revealed');
     seats.forEach(i => {
       if (i === r.winner || !r.hands[i].length) return;
       const lbl = document.createElement('div');
       lbl.className = 'muted';
-      lbl.textContent = `${S.players[i].name} elinde kalanlar (${r.scores[i]})`;
+      lbl.textContent = `${S.players[i].name} (${r.scores[i]})`;
       const line = document.createElement('div');
       line.className = 'revealed';
       r.hands[i].forEach(t => line.appendChild(tileEl(t, true)));

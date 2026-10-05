@@ -318,48 +318,107 @@ table.scores tr.win td { color: var(--gold); font-weight: 700; }
 
 /* ----- Telefon: yatay (alçak ekran) ----- */
 /* ----- Kısa yatay ekran (telefon yatay): body.short, JS ölçüme göre ekler ----- */
-.short .topbar { padding: 2px 8px; padding-top: max(2px, env(safe-area-inset-top)); font-size: 11px; gap: 6px; }
-.short .topbar button.icon { padding: 3px 6px; font-size: 13px; }
-.short #gHand { display: none; }
-.short .arena { padding: 2px 6px 0; padding-left: max(6px, env(safe-area-inset-left)); padding-right: max(6px, env(safe-area-inset-right)); }
-.short .table { padding: 3px 6px; border-width: 5px; border-radius: 18px; gap: 2px 6px; grid-template-columns: auto minmax(0, 1fr) auto; }
+.side { display: none; }
+.short #game {
+  display: grid; grid-template-columns: minmax(0, 1fr) var(--bar); grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas: "arena side" "dock side";
+}
+.short .topbar { display: none; }
+.short .arena { grid-area: arena; min-height: 0; padding: max(4px, env(safe-area-inset-top)) 4px 3px max(4px, env(safe-area-inset-left)); }
+.short .dock { grid-area: dock; display: block; padding: 0 4px max(3px, env(safe-area-inset-bottom)) max(4px, env(safe-area-inset-left)); }
+.short .rotatetip, .short .hint { display: none !important; }
+.short .rack { padding: 4px 5px 0; }
+.short .rackrow { padding-bottom: 5px; margin-bottom: 3px; }
+.short .rackrow::after { height: 5px; left: -5px; right: -5px; }
+
+/* Sağ sütun: simgeler, durum, puan, düğmeler */
+.short .side {
+  grid-area: side; display: flex; flex-direction: column; gap: 6px; min-height: 0; overflow-y: auto;
+  padding: max(5px, env(safe-area-inset-top)) max(6px, env(safe-area-inset-right)) max(5px, env(safe-area-inset-bottom)) 2px;
+  background: linear-gradient(90deg, transparent, rgba(0,0,0,.25));
+}
+.short .side .tbtns { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; }
+.short .side .tbtns button.icon { padding: 5px 0; font-size: 13px; border-radius: 7px; }
+.short .side #status { font-size: 12px; line-height: 1.25; text-align: center; white-space: normal; padding: 5px 4px; border-radius: 8px; background: rgba(0,0,0,.3); }
+.short .side #status.myturn { background: rgba(245,192,68,.18); box-shadow: inset 0 0 0 1px var(--gold); }
+.short .side .dockbar { flex: 1; display: flex; flex-direction: column; align-items: stretch; gap: 5px; margin: 0; justify-content: flex-end; }
+.short .side .mechip { display: flex; justify-content: center; padding: 0; }
+.short .side .mechip .ava { width: 34px; height: 34px; }
+.short .side .mechip .pinfo { display: none; }
+.short .side .handscore { flex: none; display: flex; flex-direction: column; align-items: center; font-size: 11px; line-height: 1.25; white-space: normal; }
+.short .side .handscore b { font-size: 13px; }
+.short .side .actions { flex-direction: column; width: auto; gap: 4px; }
+.short .side .actions button { flex: none; padding: 7px 4px; font-size: 12px; border-radius: 8px; }
+
+/* Masa: oyuncular ve atılan taşlar kenarlarda, orta tamamen perlere */
+.short .table { display: block; position: relative; padding: 0; border-width: 5px; border-radius: 18px; --sideW: 66px; }
+.short .player { position: absolute; z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 1px; text-align: center; }
+.short .p-top { top: 3px; left: 50%; transform: translateX(-50%); flex-direction: row; gap: 5px; padding: 2px 8px 2px 3px; border-radius: 20px; background: rgba(0,0,0,.35); }
+.short .p-left { left: 4px; top: 50%; transform: translateY(-50%); width: calc(var(--sideW) - 6px); }
+.short .p-right { right: 4px; top: 50%; transform: translateY(-50%); width: calc(var(--sideW) - 6px); }
 .short .ava { width: 28px; height: 28px; font-size: 11px; }
+.short .ava.emo { font-size: 16px; }
 .short .ava.team { box-shadow: 0 0 0 2px rgba(0,0,0,.35), 0 0 0 4px var(--tc); }
 .short .player.turn .ava::before { inset: -4px; }
-.short .player { gap: 5px; }
-.short .p-left, .short .p-right { flex-direction: row; text-align: left; }
-.short .pinfo { font-size: 10px; gap: 1px; }
-.short .pinfo b { font-size: 11px; max-width: 72px; }
+.short .pinfo { font-size: 10px; gap: 0; align-items: center; }
+.short .p-top .pinfo { align-items: flex-start; }
+.short .pinfo b { font-size: 11px; max-width: 64px; }
 .short .pinfo small { font-size: 10px; }
-.short .tags { justify-content: flex-start; }
+.short .pinfo .tot { display: none; }
+.short .tags { justify-content: center; gap: 2px; }
 .short .tags .badge { font-size: 9px; padding: 0 4px; }
-.short .corner { min-width: 0; }
+.short .corner { position: absolute; z-index: 2; min-width: 0; }
+.short .c-tl { top: 4px; left: 4px; } .short .c-tr { top: 4px; right: 4px; }
+.short .c-bl { bottom: 4px; left: 4px; } .short .c-br { bottom: 4px; right: 4px; }
 .short .corner small, .short .stack small { display: none; }
 .short .corner .dropzone { width: calc(var(--sw) + 6px); height: calc(var(--sw) * 1.38 + 6px); border-radius: 6px; }
 .short .corner .dropzone .tile { --w: var(--sw); --h: calc(var(--sw) * 1.38); }
 .short .corner.target .dropzone::after { font-size: 11px; }
-.short .pile { width: var(--sw); height: calc(var(--sw) * 1.38); font-size: 11px; }
-.short .center { flex-direction: row; gap: 6px; }
+.short .dcount { top: -5px; right: -5px; min-width: 15px; height: 15px; font-size: 9px; }
+.short .center { position: absolute; top: 30px; bottom: 4px; left: var(--sideW); right: var(--sideW); flex-direction: row; gap: 6px; }
 .short .stock { flex-direction: column; gap: 4px; justify-content: center; }
+.short .pile { width: var(--sw); height: calc(var(--sw) * 1.38); font-size: 11px; }
 .short .melds { grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)); gap: 5px; padding: 2px; }
 .short .mcol { padding: 4px; gap: 3px; border-radius: 8px; }
 .short .mcol header { font-size: 10px; }
-.short .dock {
-  display: grid; grid-template-columns: minmax(0, 1fr) var(--bar); grid-template-areas: "rack bar";
-  gap: 0 8px; align-items: end; padding: 2px 6px max(2px, env(safe-area-inset-bottom));
-  padding-left: max(6px, env(safe-area-inset-left)); padding-right: max(6px, env(safe-area-inset-right));
-}
-.short .rotatetip, .short .hint, .short .mechip { display: none !important; }
-.short .dockbar { grid-area: bar; flex-direction: column; align-items: stretch; margin: 0 0 6px; gap: 4px; }
-.short .handscore { display: flex; flex-direction: column; text-align: center; font-size: 11px; line-height: 1.25; white-space: normal; }
-.short .handscore b { font-size: 13px; }
-.short .actions { flex-direction: column; width: auto; gap: 4px; }
-.short .actions button { flex: none; padding: 5px 6px; font-size: 12px; border-radius: 8px; }
-.short .rack { grid-area: rack; padding: 4px 5px 0; }
-.short .rackrow { padding-bottom: 5px; margin-bottom: 3px; }
-.short .rackrow::after { height: 5px; left: -5px; right: -5px; }
-.short .chatpanel { margin: 0 6px 2px; padding: 5px; }
-.short .chatlog { max-height: 40px; }
+.short .chatpanel { position: fixed; left: 8px; right: calc(var(--bar) + 8px); bottom: 8px; z-index: 25; margin: 0; padding: 6px; }
+.short .chatlog { max-height: 54px; }
+.short .modal { padding: 6px; }
+.short .modal .panel { padding: 12px 14px; max-height: 96vh; }
+.short .modal h2 { font-size: 18px; margin: 0 0 6px; }
+.short .dnote { display: none; }
+.short .drow { padding: 6px; }
+
+/* ----- Sonuç ekranı ----- */
+.rbanner { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background: rgba(0,0,0,.25); margin-bottom: 8px; }
+.rbanner .trophy { font-size: 30px; line-height: 1; }
+.rbanner small { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.rbanner .rnames { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 18px; margin: 2px 0; }
+.rbanner .amp { color: var(--muted); margin: 0 2px; }
+.rbanner .rsub { font-size: 13px; color: var(--muted); }
+.rbanner.final { background: linear-gradient(135deg, rgba(245,192,68,.35), rgba(245,192,68,.08)); box-shadow: inset 0 0 0 2px var(--gold); }
+.rbanner.final .trophy { font-size: 40px; }
+.rbanner.final .rnames { font-size: 22px; }
+.rbanner.final.me { animation: glow 1.6s ease-in-out 3; }
+.congrats { color: var(--gold); font-weight: 700; }
+.amini { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; font-size: 15px; color: #fff; font-weight: 700; flex: none; vertical-align: middle; }
+.rtable td.rk { width: 30px; text-align: center; font-size: 16px; }
+.rtable td.nm { text-align: left; display: flex; align-items: center; gap: 6px; }
+.rtable tr.me td { background: rgba(255,255,255,.06); }
+.rtable tr.win td { color: var(--gold); }
+.tdot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.tdot.t0 { background: #c9952a; } .tdot.t1 { background: #3d7fd6; }
+.teamsum { text-align: center; margin: 4px 0 0; }
+.revealbox { margin-top: 6px; color: var(--muted); font-size: 13px; }
+.revealbox summary { cursor: pointer; }
+.crown { position: absolute; top: -11px; left: 50%; transform: translateX(-50%); font-style: normal; font-size: 14px; line-height: 1; filter: drop-shadow(0 1px 1px rgba(0,0,0,.6)); }
+.short .crown { top: -9px; font-size: 11px; }
+@media (min-width: 701px) and (min-height: 561px) { .modal .panel.result { width: min(560px, 100%); } }
+.short .modal .panel.result { width: min(720px, 100%); display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; align-items: start; }
+.short .modal .panel.result > * { grid-column: 1 / -1; }
+.short .modal .panel.result.two > .rbanner { grid-column: auto; margin-bottom: 6px; }
+.short .rtable { margin: 4px 0; font-size: 13px; }
+.short .rtable td, .short .rtable th { padding: 4px 6px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -523,3 +582,19 @@ button.danger { background: linear-gradient(#f08a72, #d9553a); color: #fff; box-
   .idrow #btnCreate { grid-column: 1 / -1; }
   .lobbypanel { padding: 20px 16px; }
 }
+
+.short .side #status { flex: none; }
+.short .p-top .pinfo { flex-direction: row; align-items: center; gap: 5px; }
+.short .p-top .tags { flex-wrap: nowrap; }
+.short .center { top: 34px; }
+.rtable th:nth-child(2) { text-align: left; }
+.short .rtable .amini { width: 20px; height: 20px; font-size: 12px; }
+.short .rbanner { padding: 6px 10px; gap: 8px; }
+.short .rbanner .trophy { font-size: 24px; }
+.short .rbanner.final .trophy { font-size: 30px; }
+.short .rbanner .rnames { font-size: 15px; }
+.short .rbanner.final .rnames { font-size: 17px; }
+.short .rbanner .amini { width: 22px; height: 22px; font-size: 13px; }
+.short .teamsum { margin: 0; font-size: 13px; }
+.short .modal .panel.result .row { margin-top: 6px !important; }
+.short .modal .panel.result .row button { padding: 7px 10px; }
