@@ -234,13 +234,16 @@ class Game {
     if (!me.opened) return { err: 'İşlemek için önce elini açmalısın' };
     const meld = this.melds.find(m => m.id === meldId);
     if (!meld) return { err: 'Per bulunamadı' };
-    if (meld.type === 'pair') return { err: 'Çiftlere taş işlenemez' };
     if (this.opts.waitAttach && me.openedAt === this.turnCount) return { err: 'Elini açtığın turda işleme yapamazsın, bir tur beklemelisin' };
     const tiles = this._pick(me, [tileId]);
     if (!tiles) return { err: 'Geçersiz taş' };
     const t = tiles[0];
     const opts = R.attachOptions(meld, t, this.okey);
-    if (!opts.length) return { err: 'Bu taş o pere uymuyor' };
+    if (!opts.length) {
+      if (meld.type === 'pair') return { err: 'Çiftlere taş işlenemez (sadece içindeki okey, aynı taş konarak alınabilir)' };
+      if (meld.type === 'run' && meld.tiles.length >= R.MAX_RUN_ATTACH) return { err: `Bu seri ${meld.tiles.length} taşlı; ${R.MAX_RUN_ATTACH} taşa ulaşmış seriye işleme yapılamaz` };
+      return { err: 'Bu taş o pere uymuyor' };
+    }
     let info = opts[0];
     if (choice && choice.kind) {
       info = opts.find(o => o.kind === choice.kind && (o.kind === 'swap' || !choice.side || o.side === choice.side));
@@ -263,11 +266,6 @@ class Game {
     }
 
     if (me.hand.length < 2) return { err: 'Atmak için elinde en az bir taş kalmalı' };
-    const cnt = this.sideCount[meld.id] || (this.sideCount[meld.id] = { left: 0, right: 0 });
-    if (meld.type === 'run' && cnt[info.side] >= 2) {
-      return { err: 'Bir pere aynı turda bir yandan en fazla 2 taş işleyebilirsin' };
-    }
-    cnt[info.side]++;
     meld.tiles = info.order;
     if (info.start != null) meld.start = info.start;
     this._remove(me, [tileId]);

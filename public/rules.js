@@ -31,6 +31,11 @@
 
   const sumRange = (s, n) => n * (2 * s + n - 1) / 2;
 
+  // İşleme sınırı: masadaki bir seri işleme ile en fazla 5 taşa çıkabilir.
+  // 3'lü seriye toplam 2, 4'lü seriye 1 taş işlenir; 5 ve daha uzun seriye işlenmez.
+  // (Açarken 5'ten uzun seri açmak serbesttir.)
+  const MAX_RUN_ATTACH = 5;
+
   // Taşlar verilen sırayla bir seri oluşturuyor mu? (okeyler bulundukları yerin değerini alır)
   // Seriler 1..13 arasıdır: 12-13-1 ve 13-1-2 GEÇERSİZ.
   function runFromOrder(tiles, okey) {
@@ -105,12 +110,17 @@
   // Masadaki perde bu taşla değiştirilip alınabilecek okeyin sırası; yoksa -1.
   // Aynı sayı perindeki okey ancak per 4 taşlıysa (eksik renk belliyse) alınabilir.
   function jokerSwapIndex(meld, t, okey) {
-    if (meld.type === 'pair' || isJoker(t, okey)) return -1;
+    if (isJoker(t, okey)) return -1;
     const e = eff(t, okey);
     for (let i = 0; i < meld.tiles.length; i++) {
       if (!isJoker(meld.tiles[i], okey)) continue;
       let rep;
-      if (meld.type === 'run') rep = { c: meld.color, v: meld.start + i };
+      if (meld.type === 'pair') {
+        // Çift: okeyin eşi olan taşla aynı taş konarak okey alınır (iki okeyli çiftte belirsiz)
+        const other = meld.tiles[1 - i];
+        if (isJoker(other, okey)) continue;
+        rep = eff(other, okey);
+      } else if (meld.type === 'run') rep = { c: meld.color, v: meld.start + i };
       else {
         if (meld.tiles.length < 4) continue;
         const reals = meld.tiles.filter(y => !isJoker(y, okey)).map(y => eff(y, okey));
@@ -123,40 +133,21 @@
     return -1;
   }
 
-  // Taş masadaki pere nasıl işlenir: okey alma (swap) ya da sağa/sola ekleme (add). Uymuyorsa null.
+  // Taş masadaki pere nasıl işlenir (ilk seçenek; okey alma önce gelir). Uymuyorsa null.
   function attachInfo(meld, t, okey) {
-    if (meld.type === 'pair') return null;
-    const si = jokerSwapIndex(meld, t, okey);
-    if (si >= 0) return { kind: 'swap', index: si };
-    if (meld.type === 'run') {
-      const n = meld.tiles.length, s = meld.start;
-      if (n >= 13) return null;
-      if (isJoker(t, okey)) {
-        if (s + n <= 13) return { kind: 'add', side: 'right', order: meld.tiles.concat([t]), start: s };
-        if (s > 1) return { kind: 'add', side: 'left', order: [t].concat(meld.tiles), start: s - 1 };
-        return null;
-      }
-      const e = eff(t, okey);
-      if (e.c !== meld.color) return null;
-      if (e.v === s - 1) return { kind: 'add', side: 'left', order: [t].concat(meld.tiles), start: s - 1 };
-      if (e.v === s + n) return { kind: 'add', side: 'right', order: meld.tiles.concat([t]), start: s };
-      return null;
-    }
-    const a = analyzeMeld(meld.tiles.concat([t]), okey);
-    if (!a || a.type !== 'set') return null;
-    return { kind: 'add', side: 'right', order: a.order };
+    return attachOptions(meld, t, okey)[0] || null;
   }
 
   // Bir taşın bir pere işlenebileceği TÜM yollar: okeyi alma, başa ekleme, sona ekleme.
   // Birden fazla seçenek varsa oyuncuya sorulur; uygulama kendi kendine seçmez.
   function attachOptions(meld, t, okey) {
-    if (meld.type === 'pair') return [];
     const out = [];
     const si = jokerSwapIndex(meld, t, okey);
     if (si >= 0) out.push({ kind: 'swap', index: si });
+    if (meld.type === 'pair') return out; // çifte taş eklenmez, sadece okeyi alınabilir
     if (meld.type === 'run') {
       const n = meld.tiles.length, s = meld.start;
-      if (n < 13) {
+      if (n < MAX_RUN_ATTACH) {
         if (isJoker(t, okey)) {
           if (s > 1) out.push({ kind: 'add', side: 'left', order: [t].concat(meld.tiles), start: s - 1 });
           if (s + n <= 13) out.push({ kind: 'add', side: 'right', order: meld.tiles.concat([t]), start: s });
@@ -177,7 +168,7 @@
     return !!attachInfo(meld, t, okey);
   }
 
-  const api = { COLOR_NAMES, okeyOf, isJoker, eff, tileName, tilePoints, runFromOrder, analyzeMeld, makeMeld, analyzePair, jokerSwapIndex, attachInfo, attachOptions, canAttach };
+  const api = { COLOR_NAMES, okeyOf, isJoker, eff, tileName, tilePoints, runFromOrder, analyzeMeld, makeMeld, analyzePair, jokerSwapIndex, attachInfo, attachOptions, canAttach, MAX_RUN_ATTACH };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Rules = api;
 })(this);

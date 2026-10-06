@@ -491,16 +491,14 @@ table.scores small { color: var(--muted); }
 button.danger { background: linear-gradient(#f08a72, #d9553a); color: #fff; box-shadow: 0 3px 0 #8f3322; }
 .ghostbtn { margin-top: 10px; background: transparent; color: var(--muted); box-shadow: none; border: 1px solid rgba(255,255,255,.2); }
 
-/* Ters çevrilmiş okey */
+/* Ters çevrilmiş okey: masadaki gibi numarasız, sade fildişi taş (hafif kabartma kenar) */
 .tile.joker {
-  background: repeating-linear-gradient(45deg, #2c6b47 0 3px, #245c3c 3px 6px);
-  box-shadow: 0 calc(var(--w) * .08) 0 #173d27, 0 calc(var(--w) * .12) calc(var(--w) * .16) rgba(0,0,0,.35), inset 0 0 0 2px var(--gold);
-  color: var(--gold); justify-content: center; padding-top: 0; gap: 1px;
+  background: linear-gradient(180deg, #fffaf0 0%, var(--ivory) 60%, var(--ivory-low) 100%);
+  box-shadow: 0 calc(var(--w) * .08) 0 var(--ivory-edge), 0 calc(var(--w) * .12) calc(var(--w) * .16) rgba(0,0,0,.35),
+    inset 0 0 0 calc(var(--w) * .09) var(--ivory), inset 0 0 0 calc(var(--w) * .11) rgba(120,100,60,.18);
 }
-.tile.joker .jstar { font-size: calc(var(--w) * .55); line-height: 1; text-shadow: 0 1px 0 rgba(0,0,0,.4); }
-.tile.joker em { font-style: normal; font-size: calc(var(--w) * .2); font-weight: 700; letter-spacing: .02em; }
 .tile.joker::after { content: none; }
-.rack .tile.joker.sel { box-shadow: 0 3px 0 #173d27, 0 0 0 3px var(--gold), inset 0 0 0 2px var(--gold); }
+.rack .tile.joker.sel { box-shadow: 0 3px 0 var(--ivory-edge), 0 0 0 3px var(--gold); }
 
 /* Atılanlar */
 .dcount { position: absolute; top: -7px; right: -7px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: #2b2418; color: var(--ivory); font-size: 11px; font-weight: 700; display: grid; place-items: center; box-shadow: 0 0 0 2px rgba(255,255,255,.2); }

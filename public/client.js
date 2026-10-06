@@ -334,9 +334,9 @@ function tileEl(t, small) {
     d.title = 'Sahte okey';
   } else {
     if (S && t.id != null && Rules.isJoker(t, S.okey)) {
-      // Gerçek okey ters çevrilmiş gibi gösterilir; diğer taşlarla karışmaz
+      // Gerçek okey masadaki gibi ters çevrilmiş görünür: numarasız, sade bir taş
       d.classList.add('joker');
-      d.innerHTML = '<span class="jstar">★</span><em>OKEY</em>';
+      d.innerHTML = '';
       d.title = 'Okey (' + Rules.tileName(t) + ')';
     } else {
       d.style.color = COLORS[t.c];
@@ -885,8 +885,8 @@ function openHelp() {
   openPanel(`<h2>Nasıl oynanır?</h2><div class="help">
     <h3>Amaç</h3><p>Taşlarını perlere dizip elini açmak, sonra hepsini yere bırakıp eli bitirmek. Oyun sonunda <b>en az puanı</b> olan kazanır.</p>
     <h3>Sıra sende</h3><p>Önce bir taş çek: ortadaki <b>yığından</b> ya da soldaki oyuncunun attığı taşı <b>sol alttan</b> al (dokun ya da ıstakada bir yuvaya sürükle). Sonra bir taş at: taşı <b>sağ alttaki</b> alana sürükle ya da taşa iki kez dokun.</p>
-    <h3>Per ve açma</h3><p>Seri: aynı renk ardışık en az 3 taş (12-13-1 olmaz). Grup: aynı sayı farklı renk 3-4 taş. Istakada perlerin arasına bir boşluk bırak, puanı üstünde görünür. Toplam <b>101</b> ya da <b>5 çift</b> olunca "Elini aç". Okey (★) her taşın yerine geçer.</p>
-    <h3>İşleme</h3><p>Elini açtıktan sonra taş seç; uyduğu perler parlar. <b>+</b> başa/sona ekler, <b>Al</b> perdeki okeyi alır (okeyi o tur kullanmalısın). Kırmızı yıldızlı taşlar işlektir.</p>
+    <h3>Per ve açma</h3><p>Seri: aynı renk ardışık en az 3 taş (12-13-1 olmaz). Grup: aynı sayı farklı renk 3-4 taş. Istakada perlerin arasına bir boşluk bırak, puanı üstünde görünür. Toplam <b>101</b> ya da <b>5 çift</b> olunca "Elini aç". Okey (ters çevrilmiş, numarasız taş) her taşın yerine geçer; sahte okey (✿) okeyin kendisi olarak sayılır.</p>
+    <h3>İşleme</h3><p>Elini açtıktan sonra taş seç; uyduğu perler parlar. <b>+</b> başa/sona ekler, <b>Al</b> perdeki okeyi alır (okeyi o tur kullanmalısın). Okey seriden, 4'lü gruptan ya da çiftten alınabilir; alana ceza yoktur. Bir seri işleme ile en fazla <b>5 taşa</b> çıkar: 3'lüye 2, 4'lüye 1 taş işlenir, 5'liye işlenmez. Kırmızı yıldızlı taşlar işlektir.</p>
     <h3>Cezalar</h3><p>Okey atmak, işlek taş atmak, yandan alıp açamamak: 101. Elini açmadan biten elde 202. Okeyle, çiftten ya da elden bitirmek puanları ikiye katlar.</p>
     <h3>Kısayollar (bilgisayar)</h3><p><kbd>Boşluk</kbd> yığından çek · <kbd>A</kbd> soldakini al · <kbd>S</kbd> seri diz · <kbd>C</kbd> çift diz · <kbd>Delete</kbd> seçili taşı at · <kbd>Enter</kbd> elini aç · <kbd>Esc</kbd> seçimi kaldır</p>
   </div><div class="row" style="margin-top:12px"><button class="primary grow" id="hpOk">Anladım</button></div>`, () => { $('#hpOk').onclick = closePanel; });
