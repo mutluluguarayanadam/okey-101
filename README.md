@@ -43,13 +43,14 @@ Not: Ücretsiz sunucu 15 dakika kimse bağlanmazsa uyur; ilk girişte açılmas�
 - 106 taş. Göstergenin bir üstü okeydir (gösterge 13 ise okey 1). Sahte okey, okeyin yerine geçer.
 - Başlayan oyuncu 22, diğerleri 21 taş alır. Oyun saat yönünün tersine döner, soldakinin attığını alabilirsin.
 - Seriler 1-13 arasıdır: **12-13-1 ve 13-1-2 geçersizdir**. Aynı sayı perleri 3 ya da 4 farklı renktir.
+- Açarken ya da yere indirirken bir seri **en fazla 5 taş** olabilir: 1234567 tek per açılamaz, 1234 + 567 ya da 123 + 4567 diye bölünür.
 - Açmak için en az 101 puanlık seri ya da en az 5 çift gerekir. Okey, yerine geçtiği taşın değerini alır ve dizildiği yerde kalır.
 - Soldan taş alan, elini açmamışsa o taşla açmak zorundadır. Açamazsa ya da açmak istemezse taşı geri koyar ve 101 ceza yazılır.
 - Seri açan yeni seri indirebilir. Masada çift açan varsa çift alanına çift de indirebilir. Çift açan yeni seri açamaz, sadece çift indirir ve işler.
-- İşleme ile bir seri en fazla 5 taşa çıkabilir: 3'lü seriye toplam 2 (sağ ya da sol fark etmez), 4'lü seriye 1 taş işlenir; 5'li ve daha uzun seriye işlenmez. Açarken 5'ten uzun seri açmak serbesttir. Aynı sayı grubu en fazla 4 taştır.
+- Masadaki bir pere **bir turda en fazla 2 taş** işlenebilir; toplamda sınır yoktur (seri işlenerek 13'e kadar uzayabilir). O tur sınırı dolmuş bir pere uyan taşı atmak işlek sayılmaz.
 - Elini açan, yerdeki okeyin yerine geçen taşı koyup okeyi alabilir: seriden, 4'lü gruptan ya da çiftten (çiftte okeyin eşiyle aynı taş konur). 3'lü gruptaki ve iki okeyli çiftteki okey belirsiz olduğu için alınamaz. Okeyi almak kimseye ceza yazdırmaz; ama alınan okey aynı tur kullanılmazsa alana 101 ceza yazılır.
-- Okey atmak ya da işlek taş atmak 101 cezadır (bitiş taşı hariç). Yerdeki bir okeyi alabilecek taş da işlek sayılır. 5 taşa ulaşmış serinin devamı olan taş işlek değildir.
-- Okey, masadaki gibi ters çevrilmiş (numarasız, sade) taş olarak görünür.
+- Okey atmak ya da işlek taş atmak 101 cezadır (bitiş taşı hariç). Yerdeki bir okeyi alabilecek taş da işlek sayılır.
+- Okey göstergenin bir üstüdür; ekranda ayrıca gösterilmez. Okey elde kendi yüzüyle durur; oyuncu istediği taşı sağ tık (telefonda uzun basma) ile ters çevirebilir. Masada (perlerde, atılanlarda) okey ters çevrilmiş, numarasız görünür.
 - Eli bitiren -101, açmayan 202 alır. Açan, elinde kalan taşların toplamını yazar; çift açanın puanı ikiye katlanır. Elde kalan her okey için +101 eklenir.
 - Okey atarak, çiftten ya da elden (açtığı turda) bitirmek puanları her biri için ikiye katlar.
 - Dört oyuncu da çift açarsa el iptal edilir ve yeniden dağıtılır.

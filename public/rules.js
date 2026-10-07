@@ -31,16 +31,15 @@
 
   const sumRange = (s, n) => n * (2 * s + n - 1) / 2;
 
-  // İşleme sınırı: masadaki bir seri işleme ile en fazla 5 taşa çıkabilir.
-  // 3'lü seriye toplam 2, 4'lü seriye 1 taş işlenir; 5 ve daha uzun seriye işlenmez.
-  // (Açarken 5'ten uzun seri açmak serbesttir.)
-  const MAX_RUN_ATTACH = 5;
+  // Açarken / yere indirirken bir seri en fazla 5 taş olabilir (1234567 -> 1234 + 567 gibi bölünür).
+  // Masadaki perlere işleme ile seri 13'e kadar uzayabilir (tur başına sınır oyun motorunda).
+  const MAX_OPEN_RUN = 5;
 
   // Taşlar verilen sırayla bir seri oluşturuyor mu? (okeyler bulundukları yerin değerini alır)
   // Seriler 1..13 arasıdır: 12-13-1 ve 13-1-2 GEÇERSİZ.
-  function runFromOrder(tiles, okey) {
+  function runFromOrder(tiles, okey, maxLen = MAX_OPEN_RUN) {
     const n = tiles.length;
-    if (n < 3 || n > 13) return null;
+    if (n < 3 || n > maxLen) return null;
     let c = null, s = null;
     for (let i = 0; i < n; i++) {
       const e = eff(tiles[i], okey);
@@ -53,7 +52,7 @@
   }
 
   // Sıradan bağımsız en iyi değerlendirme (botlar ve öneriler için)
-  function analyzeMeld(tiles, okey) {
+  function analyzeMeld(tiles, okey, maxLen = MAX_OPEN_RUN) {
     const n = tiles.length;
     if (n < 3 || n > 13) return null;
     const items = tiles.map(t => ({ t, e: eff(t, okey) }));
@@ -70,7 +69,7 @@
     }
 
     const c = real[0].e.c;
-    if (real.every(x => x.e.c === c)) {
+    if (n <= maxLen && real.every(x => x.e.c === c)) {
       const vals = real.map(x => x.e.v);
       if (new Set(vals).size === vals.length) {
         const mn = Math.min(...vals), mx = Math.max(...vals);
@@ -92,6 +91,11 @@
   }
 
   // Oyuncunun dizdiği sıraya saygı göstererek per oluşturur (soldan sağa ya da sağdan sola seri)
+  // 5'ten uzun ama aksi halde geçerli bir seri mi? (oyuncuya "böl" uyarısı için)
+  function isTooLongRun(tiles, okey) {
+    return tiles.length > MAX_OPEN_RUN && !!(runFromOrder(tiles, okey, 13) || runFromOrder(tiles.slice().reverse(), okey, 13) || analyzeMeld(tiles, okey, 13));
+  }
+
   function makeMeld(tiles, okey) {
     const a = analyzeMeld(tiles, okey);
     if (!a) return null;
@@ -147,7 +151,7 @@
     if (meld.type === 'pair') return out; // çifte taş eklenmez, sadece okeyi alınabilir
     if (meld.type === 'run') {
       const n = meld.tiles.length, s = meld.start;
-      if (n < MAX_RUN_ATTACH) {
+      if (n < 13) {
         if (isJoker(t, okey)) {
           if (s > 1) out.push({ kind: 'add', side: 'left', order: [t].concat(meld.tiles), start: s - 1 });
           if (s + n <= 13) out.push({ kind: 'add', side: 'right', order: meld.tiles.concat([t]), start: s });
@@ -168,7 +172,7 @@
     return !!attachInfo(meld, t, okey);
   }
 
-  const api = { COLOR_NAMES, okeyOf, isJoker, eff, tileName, tilePoints, runFromOrder, analyzeMeld, makeMeld, analyzePair, jokerSwapIndex, attachInfo, attachOptions, canAttach, MAX_RUN_ATTACH };
+  const api = { COLOR_NAMES, okeyOf, isJoker, eff, tileName, tilePoints, runFromOrder, analyzeMeld, makeMeld, analyzePair, jokerSwapIndex, attachInfo, attachOptions, canAttach, isTooLongRun, MAX_OPEN_RUN };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Rules = api;
 })(this);

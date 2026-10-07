@@ -665,3 +665,10 @@ kbd { display: inline-block; padding: 0 5px; border-radius: 4px; background: rgb
 .short .ticker { font-size: 11px; bottom: 3px; }
 .short .gscore { top: -7px; font-size: 9px; height: 14px; line-height: 14px; min-width: 15px; }
 .short .p-top .pinfo b { max-width: 120px; }
+
+/* Elde ters çevrilen taş: okey gibi sade arka yüz */
+.rack .tile.flipped { cursor: grab; }
+/* 5'ten uzun seri uyarısı */
+.gscore.long { background: #c8231f; }
+.rack .tile.toolong { box-shadow: 0 3px 0 var(--ivory-edge), inset 0 -3px 0 #c8231f; }
+.rack .tile { -webkit-touch-callout: none; }

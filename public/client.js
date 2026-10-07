@@ -320,12 +320,15 @@ const partner = i => esli() && i !== S.you && i % 2 === S.you % 2;
 const initials = n => n.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
 function tileKey(t, pairFirst) {
-  if (Rules.isJoker(t, S.okey)) return 9999;
-  const e = Rules.eff(t, S.okey);
+  const e = Rules.isJoker(t, S.okey) ? t : Rules.eff(t, S.okey);
   return pairFirst ? e.v * 10 + e.c : e.c * 100 + e.v;
 }
 
-function tileEl(t, small) {
+// Elde ters çevrilen taşlar (sağ tık / uzun basma). Sadece bu tarayıcıda, sadece görünüm.
+let flipped = new Set();
+
+// inRack: ıstakadaki kendi taşın — okey de normal yüzüyle görünür (oyuncu kendisi tanır/çevirir)
+function tileEl(t, small, inRack) {
   const d = document.createElement('div');
   d.className = 'tile' + (small ? ' sm' : '');
   if (t.fake) {
@@ -333,7 +336,11 @@ function tileEl(t, small) {
     d.innerHTML = '<span>✿</span>';
     d.title = 'Sahte okey';
   } else {
-    if (S && t.id != null && Rules.isJoker(t, S.okey)) {
+    if (inRack && flipped.has(t.id)) {
+      d.classList.add('joker', 'flipped');
+      d.innerHTML = '';
+      d.title = 'Ters çevrilmiş taş (sağ tık / uzun bas: çevir)';
+    } else if (!inRack && S && t.id != null && Rules.isJoker(t, S.okey)) {
       // Gerçek okey masadaki gibi ters çevrilmiş görünür: numarasız, sade bir taş
       d.classList.add('joker');
       d.innerHTML = '';
@@ -405,6 +412,7 @@ function syncHand() {
     handKey = key;
     sel = null;
     fresh.clear();
+    flipped = new Set();
     const sorted = S.hand.slice().sort((a, b) => tileKey(a) - tileKey(b)).map(t => t.id);
     slots = arrange([], sorted);
     if (prefs.autoSort) autoArrange('seri', true);
@@ -490,7 +498,8 @@ function evalRack() {
       if (chunks.every(c => Rules.analyzePair(c.map(tileById), ok))) chunks.forEach(c => pairs.push({ ids: c }));
     }
   }
-  return { melds, pairs, score: melds.reduce((s, m) => s + m.score, 0) };
+  const tooLong = rackGroups().filter(g => g.length > Rules.MAX_OPEN_RUN && Rules.isTooLongRun(g.map(tileById), ok));
+  return { melds, pairs, tooLong, score: melds.reduce((s, m) => s + m.score, 0) };
 }
 
 function moveTile(id, target) {
@@ -534,9 +543,7 @@ function renderGame() {
   for (let r = 0; r <= 3; r++) renderCorner(r);
 
   $('#indicator').replaceChildren(tileEl(S.indicator, true));
-  const ok = tileEl({ c: S.okey.c, v: S.okey.v }, true);
-  ok.classList.add('okeytile');
-  $('#okeyTile').replaceChildren(ok);
+  $('#indicator').title = 'Gösterge: bunun bir üstü (aynı renk) okeydir';
   $('#pileCount').textContent = S.pile;
   const canDraw = myTurn() && S.phase === 'draw';
   $('#pile').classList.toggle('active', canDraw);
@@ -754,6 +761,8 @@ function renderRack() {
   const inMeld = new Set(ev.melds.flatMap(m => m.ids));
   const inPair = new Set(ev.pairs.flatMap(p => p.ids));
   const firstOf = new Map(ev.melds.map(m => [m.ids[0], m.score]));
+  const longFirst = new Set(ev.tooLong.map(g => g[0]));
+  const longIds = new Set(ev.tooLong.flat());
   const showIsler = S.melds.length > 0;
   for (let r = 0; r < 2; r++) {
     const row = document.createElement('div');
@@ -766,12 +775,14 @@ function renderRack() {
       const id = slots[i];
       if (id != null) {
         const t = tileById(id);
-        const d = tileEl(t);
+        const d = tileEl(t, false, true);
         d.dataset.id = id;
         if (sel === id) d.classList.add('sel');
         if (fresh.has(id)) d.classList.add('fresh');
         if (inMeld.has(id)) d.classList.add('grp');
         if (firstOf.has(id)) { const b = document.createElement('span'); b.className = 'gscore'; b.textContent = firstOf.get(id); d.appendChild(b); }
+        if (longFirst.has(id)) { const b = document.createElement('span'); b.className = 'gscore long'; b.textContent = '≤5'; b.title = 'Seri en fazla 5 taşla açılır: araya boşluk koyup ikiye böl'; d.appendChild(b); }
+        if (longIds.has(id)) d.classList.add('toolong');
         else if (inPair.has(id)) d.classList.add('grp', 'pair');
         if (showIsler && !Rules.isJoker(t, S.okey) && S.melds.some(m => Rules.canAttach(m, t, S.okey))) {
           d.classList.add('isler');
@@ -820,6 +831,7 @@ function renderActions() {
   else if (S.takenJoker != null && S.hand.some(x => x.id === S.takenJoker)) hint = 'Aldığın okeyi bu tur bir pere işle ya da yeni seride kullan, yoksa 101 ceza.';
   else if (selIsler && !(playing() && me().opened)) hint = 'Bu taş işlek: masadaki kırmızı çerçeveli pere uyuyor. Atarsan 101 ceza yazılır.';
   else if (playing() && sel != null) hint = me().opened && selIsler ? 'Parlayan pere dokunarak işle (+ işaretli yere eklenir). Okeyi alabileceğin perde okey parlar.' : 'Sağ alttaki alana dokunarak at ya da boş bir yuvaya taşı.';
+  else if (playing() && evalRack().tooLong.length) hint = 'Seri en fazla 5 taşla açılır: uzun seriyi araya boşluk koyarak ikiye böl (örn. 1-2-3-4 ve 5-6-7).';
   else if (playing()) hint = 'Perlerin arasında bir boşluk bırak, puanın otomatik hesaplanır. Taşı sürükleyip sağ alt köşeye bırakarak at.';
   else if (myTurn()) hint = 'Ortadaki yığından ya da sol alttaki taştan çek: dokun ya da ıstakada istediğin yuvaya sürükle.';
   $('#hint').textContent = hint;
@@ -832,8 +844,7 @@ function discard(id, force) {
   const t = tileById(id);
   if (!force && prefs.confirmRisky && t && S.hand.length > 1) {
     let warn = null;
-    if (Rules.isJoker(t, S.okey)) warn = 'Okeyi atarsan <b>101 ceza</b> yazılır.';
-    else if (S.melds.some(m => Rules.canAttach(m, t, S.okey))) warn = 'Bu taş masadaki bir pere işlenebiliyor (işlek). Atarsan <b>101 ceza</b> yazılır.';
+    if (S.melds.some(m => Rules.canAttach(m, t, S.okey))) warn = 'Bu taş masadaki bir pere işlenebiliyor (işlek). Atarsan <b>101 ceza</b> yazılır.';
     else if (S.takenJoker != null && S.hand.some(x => x.id === S.takenJoker)) warn = 'Yerden aldığın okeyi bu tur kullanmadın. Şimdi atarsan <b>101 ceza</b> yazılır.';
     if (warn) {
       renderGame();
@@ -869,7 +880,7 @@ function openSettings() {
     ['sound', 'Ses', 'Sıra sana gelince, süre azalınca ve yığın biterken kısa sesler'],
     ['vibrate', 'Titreşim', 'Telefonda sıra sana gelince titrer'],
     ['autoSort', 'Yeni elde otomatik diz', 'Taşlar dağıtılınca en iyi seri dizilimi kurulur'],
-    ['confirmRisky', 'Riskli atışta sor', 'Okey, işlek taş ya da kullanılmamış alınan okey atılırken onay ister'],
+    ['confirmRisky', 'Riskli atışta sor', 'İşlek taş ya da yerden alıp kullanmadığın okey atılırken onay ister'],
     ['shapes', 'Renk körlüğü desteği', 'Her rengin altındaki işaret farklı şekilde olur (● ■ ◆ ▲)'],
   ];
   openPanel(`<h2>Ayarlar</h2><div class="prefs">${items.map(([k, t, d]) =>
@@ -885,8 +896,9 @@ function openHelp() {
   openPanel(`<h2>Nasıl oynanır?</h2><div class="help">
     <h3>Amaç</h3><p>Taşlarını perlere dizip elini açmak, sonra hepsini yere bırakıp eli bitirmek. Oyun sonunda <b>en az puanı</b> olan kazanır.</p>
     <h3>Sıra sende</h3><p>Önce bir taş çek: ortadaki <b>yığından</b> ya da soldaki oyuncunun attığı taşı <b>sol alttan</b> al (dokun ya da ıstakada bir yuvaya sürükle). Sonra bir taş at: taşı <b>sağ alttaki</b> alana sürükle ya da taşa iki kez dokun.</p>
-    <h3>Per ve açma</h3><p>Seri: aynı renk ardışık en az 3 taş (12-13-1 olmaz). Grup: aynı sayı farklı renk 3-4 taş. Istakada perlerin arasına bir boşluk bırak, puanı üstünde görünür. Toplam <b>101</b> ya da <b>5 çift</b> olunca "Elini aç". Okey (ters çevrilmiş, numarasız taş) her taşın yerine geçer; sahte okey (✿) okeyin kendisi olarak sayılır.</p>
-    <h3>İşleme</h3><p>Elini açtıktan sonra taş seç; uyduğu perler parlar. <b>+</b> başa/sona ekler, <b>Al</b> perdeki okeyi alır (okeyi o tur kullanmalısın). Okey seriden, 4'lü gruptan ya da çiftten alınabilir; alana ceza yoktur. Bir seri işleme ile en fazla <b>5 taşa</b> çıkar: 3'lüye 2, 4'lüye 1 taş işlenir, 5'liye işlenmez. Kırmızı yıldızlı taşlar işlektir.</p>
+    <h3>Per ve açma</h3><p>Seri: aynı renk ardışık en az 3 taş (12-13-1 olmaz). Grup: aynı sayı farklı renk 3-4 taş. Istakada perlerin arasına bir boşluk bırak, puanı üstünde görünür. Toplam <b>101</b> ya da <b>5 çift</b> olunca "Elini aç". Seri en fazla <b>5 taşla</b> açılır (1234567 → 1234 + 567). <b>Okey</b>, göstergenin bir üstüdür (aynı renk) ve her taşın yerine geçer; elinde kendi yüzüyle durur, tanımak sana kalmış. Sahte okey (✿) okeyin kendisi olarak sayılır. Masada okey ters çevrilmiş (numarasız) görünür.</p>
+    <h3>Taşı ters çevirme</h3><p>Istakadaki bir taşa <b>sağ tıkla</b> (telefonda <b>uzun bas</b>): taş ters döner, bir daha yapınca düzelir. Okeyi böyle işaretleyebilirsin.</p>
+    <h3>İşleme</h3><p>Elini açtıktan sonra taş seç; uyduğu perler parlar. <b>+</b> başa/sona ekler, <b>Al</b> perdeki okeyi alır (okeyi o tur kullanmalısın). Okey seriden, 4'lü gruptan ya da çiftten alınabilir; alana ceza yoktur. Bir pere <b>bir turda en fazla 2 taş</b> işlenir; toplamda sınır yoktur. Kırmızı yıldızlı taşlar işlektir.</p>
     <h3>Cezalar</h3><p>Okey atmak, işlek taş atmak, yandan alıp açamamak: 101. Elini açmadan biten elde 202. Okeyle, çiftten ya da elden bitirmek puanları ikiye katlar.</p>
     <h3>Kısayollar (bilgisayar)</h3><p><kbd>Boşluk</kbd> yığından çek · <kbd>A</kbd> soldakini al · <kbd>S</kbd> seri diz · <kbd>C</kbd> çift diz · <kbd>Delete</kbd> seçili taşı at · <kbd>Enter</kbd> elini aç · <kbd>Esc</kbd> seçimi kaldır</p>
   </div><div class="row" style="margin-top:12px"><button class="primary grow" id="hpOk">Anladım</button></div>`, () => { $('#hpOk').onclick = closePanel; });
@@ -1001,10 +1013,33 @@ $('#corner3').addEventListener('pointerdown', e => {
   drag = { draw: 'discard', x: e.clientX, y: e.clientY, src: $('#corner3 .tile') || $('#corner3'), moved: false, over: null };
 });
 
+function flipTile(id) {
+  flipped.has(id) ? flipped.delete(id) : flipped.add(id);
+  buzz(25);
+  renderRack();
+}
+$('#rack').addEventListener('contextmenu', e => {
+  const t = e.target.closest('.tile[data-id]');
+  if (!t) return;
+  e.preventDefault();
+  // Uzun basma zamanlayıcısı zaten çevirdiyse tekrar çevirme
+  if (longPressed) { longPressed = false; return; }
+  if (drag && drag.id === +t.dataset.id) { clearTimeout(drag.lp); drag = null; }
+  flipTile(+t.dataset.id);
+});
+let longPressed = false;
 $('#rack').addEventListener('pointerdown', e => {
+  longPressed = false;
   const t = e.target.closest('.tile[data-id]');
   if (!t || e.button > 0) return;
   drag = { id: +t.dataset.id, x: e.clientX, y: e.clientY, src: t, moved: false, over: null };
+  // Dokunmatik: yerinde uzun basma taşı çevirir
+  if (e.pointerType !== 'mouse') {
+    const d = drag;
+    d.lp = setTimeout(() => {
+      if (drag === d && !d.moved) { longPressed = true; drag = null; flipTile(d.id); }
+    }, 550);
+  }
 });
 
 window.addEventListener('pointermove', e => {
@@ -1012,6 +1047,7 @@ window.addEventListener('pointermove', e => {
   if (!drag.moved) {
     if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 7) return;
     drag.moved = true;
+    clearTimeout(drag.lp);
     if (drag.draw) {
       // Çekilen taşın hayaleti: yığından ise ters taş, yandan ise o taş
       const ref = $('#rack .slot') || drag.src;
@@ -1052,6 +1088,7 @@ function endDrag(e) {
   if (!drag) return;
   const d = drag;
   drag = null;
+  clearTimeout(d.lp);
   if (d.draw) {
     document.body.classList.remove('drawing');
     const type = d.draw === 'pile' ? 'drawPile' : 'drawDiscard';

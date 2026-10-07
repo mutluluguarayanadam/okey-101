@@ -60,7 +60,7 @@ class Game {
     this.mustOpenWith = null;
     this.undoUsed = false;
     this.takenJoker = null;   // bu tur masadan alınan okey (aynı tur kullanılmalı)
-    this.sideCount = {};      // bu tur her pere hangi yandan kaç taş işlendi
+    this.attachCount = {};    // bu tur her pere kaç taş işlendi (tur başına en fazla 2)
     this.result = null;
     this.handIndex = this.handNo + 1;
     this.turnCount++;
@@ -91,7 +91,7 @@ class Game {
     this.undoUsed = false;
     this.mustOpenWith = null;
     this.takenJoker = null;
-    this.sideCount = {};
+    this.attachCount = {};
     this.turnCount++;
   }
 
@@ -175,7 +175,10 @@ class Game {
     } else {
       analyzed = gTiles.map(g => R.makeMeld(g, this.okey));
       const bad = analyzed.findIndex(a => !a);
-      if (bad >= 0) return { err: `${bad + 1}. grup geçerli bir per değil` };
+      if (bad >= 0) {
+        if (R.isTooLongRun(gTiles[bad], this.okey)) return { err: `${bad + 1}. grup ${gTiles[bad].length} taşlı: seri en fazla ${R.MAX_OPEN_RUN} taşla açılır, ikiye böl (örn. 1-2-3-4 ve 5-6-7)` };
+        return { err: `${bad + 1}. grup geçerli bir per değil` };
+      }
       const sc = analyzed.reduce((s, a) => s + a.score, 0);
       const need = this.barrier(seat).per;
       if (sc < need) return { err: `Toplam ${sc} puan; açmak için en az ${need} gerekir` };
@@ -219,7 +222,7 @@ class Game {
     } else {
       if (me.openType === 'cift') return { err: 'Çift açtığın için yeni seri açamazsın, sadece işleyebilirsin' };
       const a = R.makeMeld(tiles, this.okey);
-      if (!a) return { err: 'Bu grup geçerli bir per değil' };
+      if (!a) return { err: R.isTooLongRun(tiles, this.okey) ? `Seri en fazla ${R.MAX_OPEN_RUN} taşla indirilir, ikiye böl` : 'Bu grup geçerli bir per değil' };
       this._pushMeld(seat, a);
     }
     this._remove(me, ids);
@@ -241,7 +244,6 @@ class Game {
     const opts = R.attachOptions(meld, t, this.okey);
     if (!opts.length) {
       if (meld.type === 'pair') return { err: 'Çiftlere taş işlenemez (sadece içindeki okey, aynı taş konarak alınabilir)' };
-      if (meld.type === 'run' && meld.tiles.length >= R.MAX_RUN_ATTACH) return { err: `Bu seri ${meld.tiles.length} taşlı; ${R.MAX_RUN_ATTACH} taşa ulaşmış seriye işleme yapılamaz` };
       return { err: 'Bu taş o pere uymuyor' };
     }
     let info = opts[0];
@@ -266,12 +268,19 @@ class Game {
     }
 
     if (me.hand.length < 2) return { err: 'Atmak için elinde en az bir taş kalmalı' };
+    if ((this.attachCount[meld.id] || 0) >= 2) return { err: 'Bir pere bir turda en fazla 2 taş işlenebilir' };
+    this.attachCount[meld.id] = (this.attachCount[meld.id] || 0) + 1;
     meld.tiles = info.order;
     if (info.start != null) meld.start = info.start;
     this._remove(me, [tileId]);
     if (this.takenJoker === tileId) this.takenJoker = null;
     this.addLog(`${this.name(seat)} ${R.tileName(t)} işledi`);
     return { ok: true };
+  }
+
+  // Taş şu an bu pere işlenebilir mi? (tur başına 2 taş sınırı dahil; okey alma sınırsız)
+  canAttachNow(m, t) {
+    return R.attachOptions(m, t, this.okey).some(o => o.kind === 'swap' || (this.attachCount[m.id] || 0) < 2);
   }
 
   // "İşle" düğmesi: işlenebilen taşları (okey hariç, okey alma hariç) masaya işler
@@ -316,7 +325,7 @@ class Game {
       if (joker) {
         me.penalty += 101;
         this.addLog(`${this.name(seat)} okey attı: 101 ceza`);
-      } else if (this.melds.some(m => R.canAttach(m, t, this.okey))) {
+      } else if (this.melds.some(m => this.canAttachNow(m, t))) {
         me.penalty += 101;
         this.addLog(`${this.name(seat)} işlek taş attı: 101 ceza`);
       }

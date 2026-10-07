@@ -11,7 +11,7 @@ function candidatesWith(A, rem) {
 
   // Seriler (1..13, 12-13-1 yok)
   for (let s = Math.max(1, a - 12); s <= a; s++) {
-    for (let len = Math.max(3, a - s + 1); s + len - 1 <= 13; len++) {
+    for (let len = Math.max(3, a - s + 1); s + len - 1 <= 13 && len <= R.MAX_OPEN_RUN; len++) {
       const parts = [A];
       let miss = 0;
       for (let p = s; p < s + len; p++) {
@@ -312,7 +312,7 @@ function chooseDiscard(g, seat) {
     if (!keepW.has(t) && pot >= W.strong) k += W.strongBonus;
     k += danger(g, seat, t, kn) * (W.dng + e.v * W.dngV);
     k -= e.v * pts * 2;
-    if (g.melds.some(m => R.canAttach(m, t, ok))) k += 1000; // işlek taş atmak 101 ceza
+    if (g.melds.some(m => g.canAttachNow(m, t))) k += 1000; // işlek taş atmak 101 ceza
     if (k < bestScore) { bestScore = k; best = t; }
   }
   return best || hand[0];
