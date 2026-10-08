@@ -44,14 +44,16 @@ function candidatesWith(A, rem) {
   return out;
 }
 
-// Eldeki taşlardan en yüksek puanlı per kombinasyonunu bulur
-function solve(tiles, okey, budget = 20000) {
+// Eldeki taşlardan en iyi per kombinasyonunu bulur.
+// obj = 'score': en yüksek puan (açmak için) · obj = 'tiles': en çok taş, eşitse yüksek puan (bitirmek için)
+function solve(tiles, okey, budget = 20000, obj = 'score') {
+  const W = obj === 'tiles' ? 1000 : 0;
   const items = tiles
     .map(t => ({ t, e: R.eff(t, okey) }))
     .sort((x, y) => (x.e.joker ? 99 : x.e.c * 20 + x.e.v) - (y.e.joker ? 99 : y.e.c * 20 + y.e.v));
   let best = { score: 0, melds: [] };
   let nodes = 0;
-  const ub = rem => rem.reduce((s, x) => s + (x.e.joker ? 13 : x.e.v), 0);
+  const ub = rem => rem.reduce((s, x) => s + W + (x.e.joker ? 13 : x.e.v), 0);
 
   function rec(rem, melds, score) {
     if (nodes++ > budget) return;
@@ -61,11 +63,12 @@ function solve(tiles, okey, budget = 20000) {
     if (score + ub(rem) <= best.score) return;
     const cands = candidatesWith(A, rem).sort((p, q) => q.score - p.score);
     for (const cand of cands) {
-      rec(rem.filter(x => !cand.items.includes(x)), melds.concat([cand.items.map(x => x.t)]), score + cand.score);
+      rec(rem.filter(x => !cand.items.includes(x)), melds.concat([cand.items.map(x => x.t)]), score + cand.score + W * cand.items.length);
     }
     rec(rem.filter(x => x !== A), melds, score);
   }
   rec(items, [], 0);
+  if (W) best.score = best.melds.reduce((a, m) => a + (R.analyzeMeld(m, okey) || { score: 0 }).score, 0);
   return best;
 }
 
@@ -330,7 +333,7 @@ function layAndAttach(g, seat, reserve) {
   while (changed && guard++ < 60) {
     changed = false;
     if (me.openType === 'per') {
-      for (const m of solve(usable(), ok).melds) {
+      for (const m of solve(usable(), ok, 20000, 'tiles').melds) {
         if (me.hand.length - m.length >= 1 && g.layMeld(seat, m.map(t => t.id)).ok) { changed = true; break; }
       }
       if (changed) continue;
@@ -407,6 +410,31 @@ function fallback(g, seat) {
   if (g.phase === 'play' && me.hand.length) g.discard(seat, me.hand[me.hand.length - 1].id);
 }
 
+// "Seri diz" / "Çift diz" önerisi. Okey, oyuncu onu ters çevirdiyse okey (joker) olarak,
+// çevirmediyse yüzündeki sayı olarak değerlendirilir (okeyi tanımak oyuncuya kalır).
+// Açmadan önce: barajı geçen en çok taşlı dizilim (yoksa en yüksek puan). Açtıktan sonra: en çok taş (bitirmek için).
+function suggest(g, seat, flippedIds) {
+  const me = g.seats[seat];
+  const flip = new Set(flippedIds || []);
+  const V = { c: -9, v: -9 }; // sanal okey: sadece çevrilmiş okeyler joker sayılır
+  const vt = me.hand.map(t => {
+    if (t.fake) return { id: t.id, c: g.okey.c, v: g.okey.v, fake: false };
+    if (R.isJoker(t, g.okey)) return flip.has(t.id) ? { id: t.id, c: V.c, v: V.v, fake: false } : { id: t.id, c: t.c, v: t.v, fake: false };
+    return t;
+  });
+  const byTiles = solve(vt, V, 150000, 'tiles');
+  let best = byTiles;
+  if (!me.opened && byTiles.score < g.barrier(seat).per) {
+    const byScore = solve(vt, V, 150000, 'score');
+    if (byScore.score > byTiles.score) best = byScore;
+  }
+  return {
+    melds: best.melds.map(m => m.map(t => t.id)),
+    score: best.score,
+    pairs: findPairs(vt, V).map(p => p.map(t => t.id)),
+  };
+}
+
 function timeoutTurn(g, seat) {
   if (g.turn !== seat) return;
   if (g.phase === 'play' && g.mustOpenWith != null) { g.undoTake(seat); }
@@ -421,4 +449,4 @@ function fullTurn(g, seat) {
   if (g.phase === 'play' && g.turn === seat) play(g, seat);
 }
 
-module.exports = { solve, findPairs, draw, play, fullTurn, timeoutTurn, fallback };
+module.exports = { solve, suggest, findPairs, draw, play, fullTurn, timeoutTurn, fallback };

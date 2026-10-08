@@ -229,16 +229,29 @@ function show(id) {
 
 // Taş boyunu ekranın gerçek ölçüsüne göre hesapla (her telefonda ıstaka tam sığsın)
 // Telefon yatayda (kısa ekran) üst çubuk ve düğmeler sağdaki tek sütuna taşınır
+// Telefon yatayda: üst çubuk kalkar; simgeler ☰ menüsüne, durum ıstakanın üstündeki çubuğa,
+// yığın ve gösterge sol alt köşeye (çekme bölgesi) taşınır.
 function placeControls(short) {
-  const side = $('#side'), top = $('.topbar'), dock = $('.dock');
-  const status = $('#status'), tb = $('.tbtns'), bar = $('.dockbar');
+  const top = $('.topbar'), bar = $('.dockbar'), status = $('#status'), tb = $('.tbtns');
+  const stock = $('.stock'), table = $('.table'), pile = $('#pile'), ind = $('#indicator').parentNode;
   if (short) {
-    if (tb.parentNode !== side) side.append(tb, status, bar);
+    if (tb.parentNode !== $('#menuPop')) {
+      $('#menuPop').append(tb);
+      bar.insertBefore(status, $('#handScore'));
+      bar.insertBefore(ind, status);   // gösterge ince çubukta
+      table.append(pile);              // yığın sol altta, soldakinin taşının yanında
+    }
   } else if (tb.parentNode !== top) {
     top.append(status, tb);
-    dock.insertBefore(bar, $('#rack'));
+    stock.append(ind, pile);
+    $('#menuPop').classList.add('hidden');
   }
 }
+$('#btnMenu').onclick = e => { e.stopPropagation(); $('#menuPop').classList.toggle('hidden'); };
+$('#menuPop').addEventListener('click', () => $('#menuPop').classList.add('hidden'));
+document.addEventListener('pointerdown', e => {
+  if (!e.target.closest('#menuPop, #btnMenu')) $('#menuPop').classList.add('hidden');
+});
 
 function fitLayout() {
   const vw = window.innerWidth, vh = window.innerHeight;
@@ -246,9 +259,10 @@ function fitLayout() {
   document.body.classList.toggle('short', short);
   placeControls(short);
   const gap = vw < 700 ? 2 : 3;
-  const bar = short ? Math.round(Math.min(140, Math.max(108, vw * 0.15))) : 0;
-  const byW = (vw - bar - (short ? 26 : 34) - 14 * gap) / 15;
-  const byH = short ? (vh * 0.37) / 2.85 : vh * 0.125;
+  const bar = 0;
+  const byW = (vw - (short ? 22 : 34) - 14 * gap) / 15;
+  // Kısa ekranda ıstaka (iki sıra) ekranın ~%42'sini alır; geri kalanı masa ve ince çubuk
+  const byH = short ? ((vh * 0.42 - 16) / 2) / 1.38 : vh * 0.125;
   const tw = Math.max(16, Math.min(54, byW, byH));
   const root = document.documentElement.style;
   root.setProperty('--tw', tw.toFixed(1) + 'px');
@@ -330,6 +344,7 @@ let flipped = new Set();
 // inRack: ıstakadaki kendi taşın — okey de normal yüzüyle görünür (oyuncu kendisi tanır/çevirir)
 function tileEl(t, small, inRack) {
   const d = document.createElement('div');
+  if (t.id != null) d.dataset.tid = t.id;
   d.className = 'tile' + (small ? ' sm' : '');
   if (t.fake) {
     d.classList.add('fake');
@@ -355,18 +370,55 @@ function tileEl(t, small, inRack) {
 }
 
 // ---------- Istaka mantığı ----------
+// Istaka değerlendirmesi oyuncunun bildiğine göre yapılır: okey yüzü açıkken yüzündeki sayıdır,
+// oyuncu ters çevirdiyse okeydir (joker). Sahte okey her zaman okeyin yerine geçtiği taştır.
+const VOKEY = { c: -9, v: -9 };
+function vt(t) {
+  if (!t) return t;
+  if (t.fake) return { id: t.id, c: S.okey.c, v: S.okey.v, fake: false };
+  if (Rules.isJoker(t, S.okey)) return flipped.has(t.id) ? { id: t.id, c: VOKEY.c, v: VOKEY.v, fake: false } : { id: t.id, c: t.c, v: t.v, fake: false };
+  return t;
+}
+const vts = ids => ids.map(id => vt(tileById(id)));
+const meldOf = ids => Rules.makeMeld(vts(ids), VOKEY);
+
+// Grupları iki sıraya (15'er yuva) aralarında birer boşlukla paketler; kalan taşlar bir boşluk sonra gelir.
+// Hiçbir zaman iki grubu bitişik koymaz. Sığmazsa null.
 function arrange(groups, rest) {
+  const tryOrder = list => {
+    const rows = [[], []];
+    for (const g of list) {
+      if (!g.length) continue;
+      // en sıkı sığan satırı seç (boşluk gerekiyorsa hesaba kat)
+      let best = -1, bestFree = 99;
+      rows.forEach((row, i) => {
+        const need = g.length + (row.length ? 1 : 0), free = COLS - row.length;
+        if (need <= free && free - need < bestFree) { best = i; bestFree = free - need; }
+      });
+      if (best < 0) return null;
+      if (rows[best].length) rows[best].push(null);
+      rows[best].push(...g);
+    }
+    const left = rest.slice();
+    for (const row of rows) {
+      if (!left.length) break;
+      const gap = row.length ? 1 : 0;
+      const room = COLS - row.length - gap;
+      if (room <= 0) continue;
+      if (gap) row.push(null);
+      row.push(...left.splice(0, room));
+    }
+    if (left.length) return null;
+    const out = Array(SLOTS).fill(null);
+    rows.forEach((row, i) => row.forEach((id, k) => (out[i * COLS + k] = id)));
+    return out;
+  };
+  return tryOrder(groups) || tryOrder(groups.slice().sort((a, b) => b.length - a.length));
+}
+function arrangeLegacy(groups, rest) {
   const out = Array(SLOTS).fill(null);
   let pos = 0;
-  for (const g of groups) {
-    if (!g.length) continue;
-    if (g.length > COLS) return null;
-    if ((pos % COLS) + g.length > COLS) pos = (Math.floor(pos / COLS) + 1) * COLS;
-    if (pos + g.length > SLOTS) return null;
-    for (const id of g) out[pos++] = id;
-    if (pos % COLS) pos++; // perler arasında bir boşluk
-  }
-  for (const id of rest) {
+  for (const id of groups.flat().concat(rest)) {
     if (pos >= SLOTS) return null;
     out[pos++] = id;
   }
@@ -378,9 +430,9 @@ function arrange(groups, rest) {
 function placeNew(id) {
   const t = tileById(id);
   const fits = ids => {
-    const ts = ids.map(x => (x === id ? t : tileById(x)));
-    if (ts.length >= 3) return !!Rules.makeMeld(ts, S.okey);
-    return ts.length === 2 && Rules.analyzePair(ts, S.okey) && !Rules.isJoker(t, S.okey);
+    const ts = ids.map(x => vt(x === id ? t : tileById(x)));
+    if (ts.length >= 3) return !!Rules.makeMeld(ts, VOKEY);
+    return ts.length === 2 && Rules.analyzePair(ts, VOKEY);
   };
   if (!Rules.isJoker(t, S.okey)) {
     for (let r = 0; r < 2; r++) {
@@ -430,13 +482,13 @@ function syncHand() {
 }
 
 function autoArrange(mode, quiet) {
-  socket.emit('suggest', res => {
+  socket.emit('suggest', { flipped: [...flipped] }, res => {
     if (!S || S.lobby) return;
     const inHand = id => !!tileById(id);
     let groups;
     if (mode === 'seri') {
       groups = res.melds.filter(g => g.every(inHand)).map(g => {
-        const a = Rules.analyzeMeld(g.map(tileById), S.okey);
+        const a = Rules.analyzeMeld(vts(g), VOKEY);
         return a ? a.order.map(t => t.id) : g;
       });
     } else {
@@ -458,7 +510,7 @@ function autoArrange(mode, quiet) {
     } else {
       out = arrange(groups, rest);
     }
-    slots = out || arrange([], groups.flat().concat(rest));
+    slots = out || arrangeLegacy(groups, rest);
     sel = null;
     renderGame();
     if (!quiet) {
@@ -487,18 +539,17 @@ function evalRack() {
   const ok = S.okey;
   const melds = [], pairs = [];
   for (const g of rackGroups()) {
-    const ts = g.map(tileById);
     if (g.length >= 3) {
-      const a = Rules.makeMeld(ts, ok);
+      const a = meldOf(g);
       if (a) { melds.push({ ids: g, score: a.score }); continue; }
     }
     if (g.length % 2 === 0) {
       const chunks = [];
       for (let i = 0; i < g.length; i += 2) chunks.push(g.slice(i, i + 2));
-      if (chunks.every(c => Rules.analyzePair(c.map(tileById), ok))) chunks.forEach(c => pairs.push({ ids: c }));
+      if (chunks.every(c => Rules.analyzePair(vts(c), VOKEY))) chunks.forEach(c => pairs.push({ ids: c }));
     }
   }
-  const tooLong = rackGroups().filter(g => g.length > Rules.MAX_OPEN_RUN && Rules.isTooLongRun(g.map(tileById), ok));
+  const tooLong = rackGroups().filter(g => g.length > Rules.MAX_OPEN_RUN && Rules.isTooLongRun(vts(g), VOKEY));
   return { melds, pairs, tooLong, score: melds.reduce((s, m) => s + m.score, 0) };
 }
 
@@ -527,6 +578,9 @@ function moveTile(id, target) {
 
 // ---------- Oyun ekranı ----------
 function renderGame() {
+  // Animasyon için: güncellemeden önce taşların ekrandaki yerleri
+  const fresh_state = S !== animS;
+  const before = captureRects();
   syncHand();
   $('#gCode').textContent = S.permanent ? '🤖 ' + S.title : S.code;
   if (esli()) {
@@ -559,6 +613,147 @@ function renderGame() {
   if (!(drag && drag.moved)) renderRack();
   renderActions();
   renderModal();
+  runAnimations(before, fresh_state);
+}
+
+// ================= Animasyonlar =================
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let animS = null, animPrev = null;
+let dragged = { draw: false, discard: false }; // sürükleyerek yapılan hamlede uçuşu tekrar oynatma
+const rect = el => (el ? el.getBoundingClientRect() : null);
+const visible = r => r && r.width > 0 && r.height > 0;
+
+function captureRects() {
+  if (!S || S.lobby) return null;
+  const rack = new Map();
+  document.querySelectorAll('#rack .tile[data-id]').forEach(el => rack.set(+el.dataset.id, rect(el)));
+  const corners = [0, 1, 2, 3].map(r => rect(document.querySelector(`#corner${r} .tile`) || document.querySelector(`#corner${r} .dropzone`)));
+  const avatars = [1, 2, 3].reduce((o, r) => ((o[r] = rect(document.querySelector(`#pos${r} .ava`))), o), {});
+  return { rack, corners, avatars, pile: rect($('#pile')) };
+}
+
+function snap() {
+  return {
+    handKey, pile: S.pile,
+    hand: new Set(S.hand.map(t => t.id)),
+    count: S.players.map(p => p.count),
+    disc: S.players.map(p => p.discards.length),
+    melds: new Map(S.melds.map(m => [m.id, m.tiles.length])),
+  };
+}
+
+// Bir kopyayı A noktasından B elemanının yerine uçurur; varışta asıl eleman görünür olur
+function fly(from, toEl, proto, opts = {}) {
+  if (reduceMotion || !visible(from) || !toEl) return;
+  const to = rect(toEl);
+  if (!visible(to)) return;
+  const c = (proto || toEl).cloneNode(true);
+  c.classList.remove('just', 'fresh', 'sel');
+  c.classList.add('flyer');
+  Object.assign(c.style, { left: to.left + 'px', top: to.top + 'px', width: to.width + 'px', height: to.height + 'px' });
+  document.body.appendChild(c);
+  if (!opts.keep) toEl.style.visibility = 'hidden';
+  const dx = from.left + from.width / 2 - (to.left + to.width / 2), dy = from.top + from.height / 2 - (to.top + to.height / 2);
+  const sc = from.width / to.width;
+  const a = c.animate([
+    { transform: `translate(${dx}px, ${dy}px) scale(${sc})`, opacity: opts.fadeIn ? 0.4 : 1 },
+    { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+  ], { duration: opts.dur || 380, easing: 'cubic-bezier(.2,.8,.25,1)', delay: opts.delay || 0, fill: 'backwards' });
+  const done = () => { c.remove(); toEl.style.visibility = ''; };
+  a.onfinish = done; a.oncancel = done;
+}
+
+// Hedef bir nokta (eleman değil) ise: kopyayı oraya uçurup söndür
+function flyTo(fromEl, from, to, opts = {}) {
+  if (reduceMotion || !visible(from) || !visible(to) || !fromEl) return;
+  const c = fromEl.cloneNode(true);
+  c.classList.add('flyer');
+  Object.assign(c.style, { left: from.left + 'px', top: from.top + 'px', width: from.width + 'px', height: from.height + 'px' });
+  document.body.appendChild(c);
+  const dx = to.left + to.width / 2 - (from.left + from.width / 2), dy = to.top + to.height / 2 - (from.top + from.height / 2);
+  const a = c.animate([
+    { transform: 'translate(0,0) scale(1)', opacity: 1 },
+    { transform: `translate(${dx}px, ${dy}px) scale(.6)`, opacity: 0.2 },
+  ], { duration: opts.dur || 420, easing: 'cubic-bezier(.4,.1,.3,1)' });
+  a.onfinish = () => c.remove();
+}
+
+function runAnimations(before, changed) {
+  if (!S || S.lobby) return;
+  const now = snap();
+  const prev = animPrev;
+  animS = S;
+  animPrev = now;
+  if (!before) return;
+
+  // Istakada taşların kayarak yer değiştirmesi (FLIP)
+  if (!reduceMotion) {
+    document.querySelectorAll('#rack .tile[data-id]').forEach(el => {
+      const id = +el.dataset.id, old = before.rack.get(id);
+      if (!old || fresh.has(id) && changed) return;
+      const nw = rect(el);
+      const dx = old.left - nw.left, dy = old.top - nw.top;
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+      el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'translate(0,0)' }],
+        { duration: 220, easing: 'cubic-bezier(.2,.8,.25,1)' });
+    });
+  }
+  if (!changed || !prev || prev.handKey !== now.handKey) return;
+
+  const you = S.you;
+  const relOf = abs => (abs - you + 4) % 4;
+  const leftAbs = (you + 3) % 4;
+
+  // Benim çektiğim taş: yığından ya da soldakinden ıstakadaki yerine
+  const skipDraw = dragged.draw, skipDisc = dragged.discard;
+  if (now.disc[S.you] > prev.disc[S.you]) dragged.discard = false;
+  if ([...now.hand].some(id => !prev.hand.has(id))) dragged.draw = false;
+  S.hand.forEach(t => {
+    if (prev.hand.has(t.id) || skipDraw) return;
+    const el = document.querySelector(`#rack .tile[data-id="${t.id}"]`);
+    const fromDiscard = now.disc[leftAbs] < prev.disc[leftAbs];
+    fly(fromDiscard ? before.corners[3] : before.pile, el, null, { fadeIn: !fromDiscard });
+  });
+
+  // Benim attığım taş: ıstakadan atış köşesine
+  if (now.disc[you] > prev.disc[you] && !skipDisc) {
+    const top = S.players[you].discardTop;
+    if (top) fly(before.rack.get(top.id), document.querySelector('#corner0 .tile'));
+  }
+
+  // Elimden masaya inen taşlar (açma, indirme, işleme)
+  S.melds.forEach(m => m.tiles.forEach(t => {
+    if (!prev.hand.has(t.id) || now.hand.has(t.id)) return;
+    const el = document.querySelector(`#melds .tile[data-tid="${t.id}"]`);
+    if (el) fly(before.rack.get(t.id), el, null, { dur: 420 });
+  }));
+
+  // Rakipler: atış avatarından köşeye, çekiş yığından/soldakinden avatara
+  for (let r = 1; r <= 3; r++) {
+    const abs = (you + r) % 4;
+    if (now.disc[abs] > prev.disc[abs]) {
+      fly(before.avatars[r], document.querySelector(`#corner${r} .tile`), null, { fadeIn: true });
+    }
+    if (now.count[abs] > prev.count[abs]) {
+      const srcAbs = (abs + 3) % 4;
+      const tookDiscard = now.disc[srcAbs] < prev.disc[srcAbs];
+      const back = Object.assign(document.createElement('div'), { className: 'tile back' });
+      const from = tookDiscard ? before.corners[relOf(srcAbs)] : before.pile;
+      if (from) {
+        back.style.width = from.width + 'px';
+        back.style.height = from.height + 'px';
+        flyTo(back, from, before.avatars[r]);
+      }
+    }
+  }
+
+  // Yeni açılan perler belirerek gelir, işlenen perler parlar
+  S.melds.forEach(m => {
+    const el = document.querySelector(`#melds .meld[data-meld="${m.id}"]`);
+    if (!el) return;
+    if (!prev.melds.has(m.id)) el.classList.add('meldin');
+    else if (prev.melds.get(m.id) !== m.tiles.length) el.classList.add('meldflash');
+  });
 }
 
 // Yığın azalınca uyarı (her eşik bir kez)
@@ -619,6 +814,7 @@ function renderPlayer(el, abs) {
   if (!p.bot && !p.connected) tags.push('<span class="badge off">Bot oynuyor</span>');
   if (p.opened) tags.push(`<span class="badge open">${p.openType === 'cift' ? 'Çift' : 'Açtı'}</span>`);
   if (p.penalty) tags.push(`<span class="badge off">+${p.penalty}</span>`);
+  el.classList.toggle('opened', !!p.opened);
   el.innerHTML = avaHtml(abs) +
     `<div class="pinfo"><b>${esc(p.name)}</b><small>${p.count} taş<span class="tot"> · ${p.total} puan</span></small><div class="tags">${tags.join('')}</div></div>`;
 }
@@ -673,7 +869,9 @@ function renderMelds() {
     return;
   }
   const tid = drag ? drag.id : sel;
-  const t = tid != null ? tileById(tid) : null;
+  let t = tid != null ? tileById(tid) : null;
+  // Çevrilmemiş okey seçilince perler parlamaz (okey olduğunu belli etmesin); çevirince okey gibi işlenir
+  if (t && Rules.isJoker(t, S.okey) && !flipped.has(t.id)) t = null;
   const canNow = playing() && me().opened;
   for (let r = 0; r < 4; r++) {
     const abs = (S.you + r) % 4;
@@ -749,7 +947,8 @@ function renderMe() {
     const b = S.barrier;
     hs.innerHTML = `<span>Seri <b class="${ev.score >= b.per ? 'ok' : ''}">${ev.score}</b>/${b.per}</span><span>Çift <b class="${ev.pairs.length >= b.cift ? 'ok' : ''}">${ev.pairs.length}</b>/${b.cift}</span>`;
   } else {
-    const left = S.hand.reduce((s, t) => s + Rules.tilePoints(t, S.okey), 0);
+    // Çevrilmemiş okey yüzündeki sayıyla sayılır (okeyi ele vermesin)
+    const left = S.hand.reduce((s, t) => s + (Rules.isJoker(t, S.okey) && !flipped.has(t.id) ? t.v : Rules.tilePoints(t, S.okey)), 0);
     hs.innerHTML = `<span>Elde kalan <b>${left}</b></span>`;
   }
 }
@@ -842,7 +1041,7 @@ function act(a) { socket.emit('act', a); }
 function discard(id, force) {
   if (!playing() || id == null) return;
   const t = tileById(id);
-  if (!force && prefs.confirmRisky && t && S.hand.length > 1) {
+  if (!force && prefs.confirmRisky && t && S.hand.length > 1 && !Rules.isJoker(t, S.okey)) {
     let warn = null;
     if (S.melds.some(m => Rules.canAttach(m, t, S.okey))) warn = 'Bu taş masadaki bir pere işlenebiliyor (işlek). Atarsan <b>101 ceza</b> yazılır.';
     else if (S.takenJoker != null && S.hand.some(x => x.id === S.takenJoker)) warn = 'Yerden aldığın okeyi bu tur kullanmadın. Şimdi atarsan <b>101 ceza</b> yazılır.';
@@ -934,7 +1133,7 @@ function doOpen() {
   const draw = () => {
     const chosen = groups.filter((_, i) => picked[i]);
     const used = chosen.reduce((a, g) => a + g.length, 0);
-    const score = chosen.reduce((a, g) => a + (g.length >= 3 ? (Rules.makeMeld(g.map(tileById), S.okey) || { score: 0 }).score : 0), 0);
+    const score = chosen.reduce((a, g) => a + (g.length >= 3 ? (meldOf(g) || { score: 0 }).score : 0), 0);
     let status = '', ok = chosen.length > 0;
     if (!m.opened) {
       if (pairMode) { ok = chosen.length >= S.barrier.cift; status = `${chosen.length} çift (en az ${S.barrier.cift})`; }
@@ -949,7 +1148,7 @@ function doOpen() {
     groups.forEach((g, i) => {
       const box = $(`.pvt[data-i="${i}"]`);
       g.forEach(id => box.appendChild(tileEl(tileById(id), true)));
-      if (g.length >= 3) { const sc = document.createElement('small'); sc.textContent = (Rules.makeMeld(g.map(tileById), S.okey) || {}).score || ''; box.appendChild(sc); }
+      if (g.length >= 3) { const sc = document.createElement('small'); sc.textContent = (meldOf(g) || {}).score || ''; box.appendChild(sc); }
     });
     $('#modalBody').querySelectorAll('input[data-i]').forEach(c => (c.onchange = () => { picked[+c.dataset.i] = c.checked; draw(); }));
     $('#pvNo').onclick = close;
@@ -1016,7 +1215,7 @@ $('#corner3').addEventListener('pointerdown', e => {
 function flipTile(id) {
   flipped.has(id) ? flipped.delete(id) : flipped.add(id);
   buzz(25);
-  renderRack();
+  renderGame();
 }
 $('#rack').addEventListener('contextmenu', e => {
   const t = e.target.closest('.tile[data-id]');
@@ -1097,8 +1296,8 @@ function endDrag(e) {
     d.over?.classList.remove('over');
     const tgt = e.type === 'pointerup' ? dropTargetAt(e.clientX, e.clientY) : null;
     const onRack = e.type === 'pointerup' && document.elementFromPoint(e.clientX, e.clientY)?.closest('#rack, .dock');
-    if (tgt?.dataset.slot != null) { pendingSlot = +tgt.dataset.slot; act({ type }); }
-    else if (onRack) act({ type });
+    if (tgt?.dataset.slot != null) { pendingSlot = +tgt.dataset.slot; dragged.draw = true; act({ type }); }
+    else if (onRack) { dragged.draw = true; act({ type }); }
     else toast('Taşı çekmek için ıstakaya bırak');
     return;
   }
@@ -1129,7 +1328,7 @@ function endDrag(e) {
     if (opts.length === 1) attach(d.id, m.id, choiceOf(opts[0]));
     else if (opts.length > 1) toast('Birden fazla yol var: taşı + ya da Al üzerine bırak');
   }
-  else if (tgt?.dataset.drop === 'discard') discard(d.id);
+  else if (tgt?.dataset.drop === 'discard') { dragged.discard = true; discard(d.id); }
   renderGame();
 }
 window.addEventListener('pointerup', endDrag);
@@ -1142,6 +1341,8 @@ setInterval(() => {
   const left = S.deadline ? S.deadline - Date.now() : Infinity;
   const p = S.deadline ? Math.max(0, Math.min(1, left / (S.turnMs || 45000))) : 1;
   document.querySelectorAll('.turn .ava').forEach(a => a.style.setProperty('--p', p));
+  $('#turnbar').style.setProperty('--p', myTurn() ? p : 0);
+  $('#turnbar').classList.toggle('on', myTurn());
   const hurry = myTurn() && left < 10000;
   document.body.classList.toggle('hurry', hurry);
   if (hurry && hurryFor !== S.deadline) { hurryFor = S.deadline; beep([300, 300], 0.14, 'square'); buzz([80, 60, 80]); }

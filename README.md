@@ -22,6 +22,9 @@ Tarayıcıda http://localhost:3000 aç.
 Not: Ücretsiz sunucu 15 dakika kimse bağlanmazsa uyur; ilk girişte açılması ~1 dakika sürebilir. Sunucu yeniden başlarsa süren oyunlar silinir.
 
 ## Oynanış
+- **Seri diz / Çift diz:** Okey, yüzü açıkken kendi sayısıyla değerlendirilir; sağ tık / uzun basma ile ters çevirirsen okey (joker) olarak kullanılır. Açmadan önce barajı geçen en iyi dizilimi, açtıktan sonra bitirmek için en çok taşı yere indiren dizilimi kurar. Gruplar ıstakaya her zaman aralarında boşlukla yerleşir.
+- **Telefon (yatay):** Istaka ekranın tamamını kaplar. Taş çekme yeri sol altta (soldakinin attığı taş ve yığın), taş atma yeri sağ altta. Istakanın üstündeki ince çubukta ☰ menü (sohbet, ayarlar, tam ekran, puanlar, çıkış), gösterge, sıra bilgisi ve sadece o an kullanılabilen düğmeler var; süre ince bir çizgiyle gösterilir.
+- Taşlar çekilirken, atılırken ve yere inerken animasyonla hareket eder; ıstakada taşlar kayarak yer değiştirir.
 - **Taş çekme:** Yığından ya da sol alttaki taştan, dokunarak ya da ıstakada istediğin yuvaya sürükleyerek çekersin. Sıra sendeyken yığında "Çek", soldaki taşta "Al" yazar.
 - Yığında 6, 3 ve 1 taş kalınca uyarı verilir. Son 10 saniyede süre halkası kırmızıya döner.
 - Okey, işlek taş ya da kullanılmamış alınan okey atılırken onay istenir (Ayarlar'dan kapatılabilir).
@@ -58,8 +61,6 @@ Not: Ücretsiz sunucu 15 dakika kimse bağlanmazsa uyur; ilk girişte açılmas�
 
 ## Giriş
 Adının yanındaki yuvarlağa dokunup avatarını seçebilirsin (tarayıcında saklanır).
-
-**Bot masaları:** Sunucuda sürekli oynayan 3 bot masası vardır (2 tekli, 1 eşli). Listeden birine dokunup bir botun yerine oturursun ve oyun kaldığı yerden devam eder. Kalkınca koltuğa yine bot geçer; bağlantın kopar ve 2 dakika dönmezsen koltuk bota verilir. Bot masaları sitede kimse yokken bekler, biri girince devam eder.
 
 Açılışta açık masalar listelenir; birine dokunup oturabilir ya da yeni oda kurabilirsin. Oyundaki masalarda botun oturduğu koltuğa geçebilirsin. Oda ayarlarından masayı listeden gizleyebilirsin.
 

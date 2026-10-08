@@ -313,48 +313,12 @@ io.on('connection', socket => {
   });
 
   // "Öner" düğmesi: en iyi per dizilimi ve çiftler
-  socket.on('suggest', cb => {
+  socket.on('suggest', (a, cb) => {
+    if (typeof a === 'function') { cb = a; a = {}; }
     const room = roomOf(socket);
     if (!room || !room.game || typeof cb !== 'function') return;
-    const g = room.game;
-    const hand = g.seats[socket.data.seat].hand;
-    const sol = Bot.solve(hand, g.okey);
-    const pairs = Bot.findPairs(hand, g.okey);
-    cb({ melds: sol.melds.map(m => m.map(t => t.id)), score: sol.score, pairs: pairs.map(p => p.map(t => t.id)) });
-  });
-
-  // Oyundan / odadan isteyerek çıkış: oyunda yerine kalıcı olarak bot geçer
-  socket.on('leave', () => {
-    const room = roomOf(socket);
-    socket.data.code = null;
-    if (!room) return socket.emit('leftRoom');
-    const i = socket.data.seat;
-    const s = room.seats[i];
-    if (!s || s.socketId !== socket.id) return socket.emit('leftRoom');
-    const wasHost = s.token === room.hostToken;
-    if (!room.game) {
-      Object.assign(s, emptySeat());
-    } else if (room.permanent) {
-      room.game.addLog(`${s.name} masadan kalktı`);
-      giveSeatToBot(room, i);
-    } else {
-      room.game.addLog(`${s.name} oyundan çıktı, yerine bot oynuyor`);
-      Object.assign(s, { token: null, isBot: true, connected: true, socketId: null });
-    }
-    if (wasHost) {
-      const next = room.seats.find(x => x.token && x.connected);
-      if (next) room.hostToken = next.token;
-    }
-    socket.emit('leftRoom');
-    socket.join('lobby');
-    socket.emit('rooms', listRooms());
-    if (!room.permanent && !room.seats.some(x => x.token)) {
-      clearTimeout(room.timer);
-      rooms.delete(room.code);
-      broadcastRooms();
-      return;
-    }
-    update(room);
+    const flipped = Array.isArray(a && a.flipped) ? a.flipped.map(Number).filter(Number.isInteger).slice(0, 30) : [];
+    cb(Bot.suggest(room.game, socket.data.seat, flipped));
   });
 
   socket.on('disconnect', () => {
@@ -427,13 +391,4 @@ function createBotTable(code, title, opts) {
   rooms.set(code, room);
   newBotGame(room);
 }
-createBotTable('BOT01', 'Bot Masası 1', { mode: 'tekli', hands: 3, turnSec: 45 });
-createBotTable('BOT02', 'Bot Masası 2', { mode: 'tekli', hands: 3, turnSec: 45, katlamali: true });
-createBotTable('BOT03', 'Eşli Bot Masası', { mode: 'esli', hands: 3, turnSec: 45 });
-
-// Siteye biri girince duraklamış bot masaları yeniden başlasın
-io.on('connection', () => {
-  for (const room of rooms.values()) if (room.permanent && room.timerKey == null) update(room);
-});
-
 server.listen(PORT, () => console.log('101 Okey sunucusu çalışıyor: http://localhost:' + PORT));
