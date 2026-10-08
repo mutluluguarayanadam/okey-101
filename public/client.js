@@ -567,6 +567,32 @@ function autoArrange(mode, quiet) {
     const rest = S.hand.filter(t => !used.has(t.id))
       .sort((a, b) => tileKey(a, mode === 'cift') - tileKey(b, mode === 'cift'))
       .map(t => t.id);
+    // Amaca göre kalanları grupla: açtıysan masaya işlenebilenler bir arada (işle / at ayrımı net),
+    // açmadıysan yarım perler (iki taşı hazır seriler/gruplar) ikişer ikişer — neye ihtiyacın olduğu görünsün
+    let extra = [], loose = rest;
+    if (mode === 'seri') {
+      const m = me();
+      if (m.opened && S.melds.length) {
+        const att = rest.filter(id => { const t = tileById(id); return !(Rules.isJoker(t, S.okey) && !flipped.has(id)) && S.melds.some(x => Rules.canAttach(x, t, S.okey)); });
+        if (att.length) { extra.push(att); loose = rest.filter(id => !att.includes(id)); }
+      } else if (!m.opened) {
+        const pool = loose.slice(), partial = [];
+        const ev = id => vt(tileById(id));
+        for (let i = 0; i < pool.length; i++) {
+          if (pool[i] == null) continue;
+          const a = ev(pool[i]);
+          for (let j = i + 1; j < pool.length; j++) {
+            if (pool[j] == null) continue;
+            const b = ev(pool[j]);
+            const run = a.c === b.c && a.c >= 0 && Math.abs(a.v - b.v) >= 1 && Math.abs(a.v - b.v) <= 2;
+            const set = a.v === b.v && a.c !== b.c;
+            if (run || set) { partial.push(a.v <= b.v ? [pool[i], pool[j]] : [pool[j], pool[i]]); pool[i] = pool[j] = null; break; }
+          }
+        }
+        extra = partial;
+        loose = pool.filter(x => x != null);
+      }
+    }
     let out = null;
     if (mode === 'cift') {
       // Çiftleri ayrı ayrı sığdıramazsa ikişer/üçer blok halinde diz
@@ -577,7 +603,7 @@ function autoArrange(mode, quiet) {
         if (out) break;
       }
     } else {
-      out = arrange(groups, rest);
+      out = arrange(groups.concat(extra), loose) || arrange(groups, rest);
     }
     if (!quiet) pushRack();
     slots = out || arrangeLegacy(groups, rest);

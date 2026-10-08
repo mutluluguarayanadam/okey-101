@@ -300,7 +300,7 @@ io.on('connection', socket => {
           }
           break;
         case 'attach': r = g.addToMeld(i, a.id, a.meld, a.choice && { kind: String(a.choice.kind), side: a.choice.side && String(a.choice.side) }); break;
-        case 'autoAttach': r = g.autoAttach(i); break;
+        case 'autoAttach': r = g.autoAttach(i, Bot.keepIds(g, i)); break;
         case 'discard': r = g.discard(i, a.id); break;
         default: r = { err: 'Bilinmeyen hamle' };
       }

@@ -22,6 +22,8 @@ Tarayıcıda http://localhost:3000 aç.
 Not: Ücretsiz sunucu 15 dakika kimse bağlanmazsa uyur; ilk girişte açılması ~1 dakika sürebilir. Sunucu yeniden başlarsa süren oyunlar silinir.
 
 ## Oynanış
+- **Seri diz amaca göre dizer:** Açmadan önce perlerden sonra yarım perleri (iki taşı hazır seri/grup) ikişer ayırır; açtıktan sonra masaya işlenebilecek taşları ayrı bir grupta toplar. **İşle** düğmesi elindeki perleri bozmaz, tur başına 2 işleme hakkını verimli kullanır.
+- **Botlar:** Masada kimse açmamışken ve elden bitmeye 2-3 taş kalmışken açmayı bekletir (elden bitme puanları ikiye katlar); açarken barajı geçecek kadarını indirir; taş atarken görünmeyen taşlardan örnekler çekerek elin gelecekte ne kadar gelişeceğine bakar.
 - **Seri diz / Çift diz:** Okey, yüzü açıkken kendi sayısıyla değerlendirilir; sağ tık / uzun basma ile ters çevirirsen okey (joker) olarak kullanılır. Açmadan önce barajı geçen en iyi dizilimi, açtıktan sonra bitirmek için en çok taşı yere indiren dizilimi kurar. Gruplar ıstakaya her zaman aralarında boşlukla yerleşir.
 - **Telefon (yatay):** Istaka ekranın tamamını kaplar. Taş çekme yeri sol altta (soldakinin attığı taş ve yığın), taş atma yeri sağ altta. Istakanın üstündeki ince çubukta ☰ menü (sohbet, ayarlar, tam ekran, puanlar, çıkış), gösterge, sıra bilgisi ve sadece o an kullanılabilen düğmeler var; süre ince bir çizgiyle gösterilir.
 - **Sıra sende:** ıstakanın çevresinde nabız gibi atan altın ışık (süre azalınca kırmızı), ortada kısa "Sıra sende!" yazısı, ses ve titreşim; başka sekmedeysen sekme başlığı yanıp söner.

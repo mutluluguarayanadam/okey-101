@@ -240,6 +240,56 @@ function draw(g, seat) {
   g.drawPile(seat);
 }
 
+// ---------------- Uzman stratejileri ----------------
+const X = {
+  slowK: +(process.env.X_SLOW ?? 3),       // açmayı bekletmek için en fazla kaç taş eksik olabilir (0 = kapalı)
+  slowPile: +(process.env.X_SLOWPILE ?? 9), // yığında en az bu kadar taş varken beklet
+  minOpen: +(process.env.X_MIN ?? 1),      // açarken barajı geçecek kadar per indir, gerisini sakla
+  hold: +(process.env.X_HOLD ?? 0),        // açtıktan sonra perleri elde tut (ölçümde zarar ettirdi, kapalı)
+  holdPile: +(process.env.X_HOLDPILE ?? 8),
+  holdRival: +(process.env.X_HOLDRIVAL ?? 6),
+  look: +(process.env.X_LOOK ?? 1),          // taş atarken ileriye bakış (örnekleme)
+  lookN: +(process.env.X_LOOKN ?? 16),
+  lookW: +(process.env.X_LOOKW ?? 3),
+  lookC: +(process.env.X_LOOKC ?? 3),
+};
+
+// Bu tur eli bitirebilir miyim? (en çok taşlı dizilim + masaya işlenebilecek kalanlar, en az 1 taş atmak için kalır)
+function finishable(g, seat) {
+  const me = g.seats[seat];
+  const ok = g.okey;
+  const sol = solve(me.hand, ok, 20000, 'tiles');
+  const used = new Set(sol.melds.flat());
+  const left = me.hand.filter(t => !used.has(t));
+  const notAttach = left.filter(t => !g.melds.some(m => m.type !== 'pair' && R.canAttach(m, t, ok)));
+  return { left: left.length, stuck: notAttach.length, can: notAttach.length <= 1 };
+}
+
+// Risk arttı mı? (yığın azaldı ya da açmış bir rakip bitirmeye yaklaştı)
+function riskHigh(g, seat) {
+  if (g.pile.length <= X.holdPile) return true;
+  return g.seats.some((s, i) => i !== seat && !g.sameTeam(i, seat) && s.opened && s.hand.length <= X.holdRival);
+}
+
+// Açmayı bekletmeli mi? Elden bitme (puanlar x2) için: kimse açmamış, yığın dolu, bitirmeye 2-3 taş kalmış
+function delayOpen(g, seat) {
+  if (!X.slowK || g.mustOpenWith != null) return false;
+  if (g.seats.some((s, i) => i !== seat && s.opened)) return false;
+  if (g.pile.length < X.slowPile) return false;
+  const f = finishable(g, seat);
+  if (f.can) return false; // şimdi bitirebiliyor: aç ve bitir
+  return f.stuck <= X.slowK + 1 && f.stuck >= 2;
+}
+
+// Barajı geçen en az taşlı per alt kümesi (gerisi elde saklanır)
+function minimalOpen(melds, need, ok) {
+  const sc = melds.map(m => ({ m, s: R.analyzeMeld(m, ok).score })).sort((a, b) => b.s / b.m.length - a.s / a.m.length);
+  const out = [];
+  let sum = 0;
+  for (const x of sc) { if (sum >= need) break; out.push(x.m); sum += x.s; }
+  return sum >= need ? out : melds;
+}
+
 function tryOpen(g, seat) {
   const me = g.seats[seat];
   const ok = g.okey;
@@ -255,7 +305,11 @@ function tryOpen(g, seat) {
     used -= scored[0].m.length;
   }
   if (score >= bar.per && used < me.hand.length) {
-    if (g.open(seat, melds.map(m => m.map(t => t.id))).ok) return true;
+    if (delayOpen(g, seat)) return false; // uzman: açmayı beklet
+    let toOpen = melds;
+    if (X.minOpen && !riskHigh(g, seat) && !finishable(g, seat).can) toOpen = minimalOpen(melds, bar.per, ok);
+    if (g.open(seat, toOpen.map(m => m.map(t => t.id))).ok) return true;
+    if (toOpen !== melds && g.open(seat, melds.map(m => m.map(t => t.id))).ok) return true;
   }
   // Çift açmak cezayı ikiye katlar: seri umudu zayıfsa, çift çoksa ya da yığın azaldıysa aç
   const pairs = findPairs(me.hand, ok);
@@ -303,6 +357,7 @@ function chooseDiscard(g, seat) {
     const sc = solve(hand, ok, 6000).score;
     if (sc < g.barrier(seat).per * 0.7 && findPairs(hand, ok).length < g.barrier(seat).cift - 1) potW *= 0.3;
   }
+  const scored = [];
   let best = null, bestScore = Infinity;
   for (const t of hand) {
     if (R.isJoker(t, ok)) continue;
@@ -316,7 +371,33 @@ function chooseDiscard(g, seat) {
     k += danger(g, seat, t, kn) * (W.dng + e.v * W.dngV);
     k -= e.v * pts * 2;
     if (g.melds.some(m => g.canAttachNow(m, t))) k += 1000; // işlek taş atmak 101 ceza
+    scored.push({ t, k });
     if (k < bestScore) { bestScore = k; best = t; }
+  }
+  // İleriye bakış: en iyi 3 aday için, görünmeyen taşlardan örnekler çekip elin ortalama gelişimine bak
+  if (X.look && scored.length > 1) {
+    scored.sort((a, b) => a.k - b.k);
+    const cands = scored.slice(0, X.lookC).filter(c => c.k < 500);
+    if (cands.length > 1) {
+      const pool = [];
+      for (let c = 0; c < 4; c++) for (let v = 1; v <= 13; v++) for (let n = kn.unseen(c, v); n > 0; n--) pool.push({ id: -1 - pool.length, c, v, fake: false });
+      if (pool.length) {
+        const N = Math.min(X.lookN, pool.length);
+        const sample = [];
+        for (let i = 0; i < N; i++) sample.push(pool[Math.floor(Math.random() * pool.length)]);
+        const obj = me.opened ? 'tiles' : 'score';
+        const val = sol => (me.opened ? sol.melds.reduce((a, m) => a + m.length, 0) * 10 : Math.min(sol.score, g.barrier(seat).per + 15));
+        let bestAdj = Infinity;
+        for (const c of cands) {
+          const rest = hand.filter(x => x !== c.t);
+          let ev = 0;
+          for (const u of sample) ev += val(solve(rest.concat([u]), ok, 2500, obj));
+          ev /= N;
+          const adj = c.k - X.lookW * ev;
+          if (adj < bestAdj) { bestAdj = adj; best = c.t; }
+        }
+      }
+    }
   }
   return best || hand[0];
 }
@@ -325,6 +406,7 @@ function chooseDiscard(g, seat) {
 function layAndAttach(g, seat, reserve) {
   const me = g.seats[seat];
   const ok = g.okey;
+  const holdMelds = X.hold && me.openType === 'per' && !riskHigh(g, seat) && !finishable(g, seat).can;
   const isJ = t => R.isJoker(t, ok);
   const usable = () => me.hand.filter(t => t !== reserve);
   const ciftArea = () => g.seats.some(x => x.openType === 'cift');
@@ -332,7 +414,7 @@ function layAndAttach(g, seat, reserve) {
   let changed = true;
   while (changed && guard++ < 60) {
     changed = false;
-    if (me.openType === 'per') {
+    if (me.openType === 'per' && !holdMelds) {
       for (const m of solve(usable(), ok, 20000, 'tiles').melds) {
         if (me.hand.length - m.length >= 1 && g.layMeld(seat, m.map(t => t.id)).ok) { changed = true; break; }
       }
@@ -456,4 +538,10 @@ function hint(g, seat) {
   return t ? t.id : null;
 }
 
-module.exports = { hint, solve, suggest, findPairs, draw, play, fullTurn, timeoutTurn, fallback };
+// Elde per kuran taşlar (İşle düğmesi bunları bozmaz)
+function keepIds(g, seat) {
+  const me = g.seats[seat];
+  return solve(me.hand, g.okey, 20000, 'tiles').melds.flat().map(t => t.id);
+}
+
+module.exports = { keepIds, hint, solve, suggest, findPairs, draw, play, fullTurn, timeoutTurn, fallback };

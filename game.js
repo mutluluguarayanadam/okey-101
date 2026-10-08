@@ -284,24 +284,33 @@ class Game {
   }
 
   // "İşle" düğmesi: işlenebilen taşları (okey hariç, okey alma hariç) masaya işler
-  autoAttach(seat) {
+  // "İşle" düğmesi: işlenebilen taşları masaya işler. keepIds: elde per kuran taşlar (bozulmaz).
+  // Tek yere gidebilen taşlar önce yerleşir ki tur başına 2 işleme hakkı verimli kullanılsın. Okey kullanılmaz.
+  autoAttach(seat, keepIds) {
     const e = this._check(seat, 'play');
     if (e) return { err: e };
     const me = this.seats[seat];
     if (!me.opened) return { err: 'İşlemek için önce elini açmalısın' };
+    const keep = new Set(keepIds || []);
     let count = 0, changed = true;
     while (changed && me.hand.length > 1) {
       changed = false;
-      for (const t of me.hand.slice()) {
-        if (R.isJoker(t, this.okey) || me.hand.length <= 1) continue;
-        for (const m of this.melds) {
+      const cands = me.hand
+        .filter(t => !R.isJoker(t, this.okey) && !keep.has(t.id))
+        .map(t => ({ t, ms: this.melds.filter(m => {
           const adds = R.attachOptions(m, t, this.okey).filter(o => o.kind === 'add');
-          if (adds.length !== 1) continue;
-          if (this.addToMeld(seat, t.id, m.id, adds[0]).ok) { count++; changed = true; break; }
-        }
+          return adds.length === 1 && (this.attachCount[m.id] || 0) < 2;
+        }) }))
+        .filter(x => x.ms.length)
+        .sort((a, b) => a.ms.length - b.ms.length);
+      for (const { t, ms } of cands) {
+        if (me.hand.length <= 1) break;
+        const m = ms.sort((a, b) => (this.attachCount[a.id] || 0) - (this.attachCount[b.id] || 0))[0];
+        const add = R.attachOptions(m, t, this.okey).find(o => o.kind === 'add');
+        if (this.addToMeld(seat, t.id, m.id, add).ok) { count++; changed = true; break; }
       }
     }
-    return count ? { ok: true, count } : { err: 'İşlenecek taş yok' };
+    return count ? { ok: true, count } : { err: 'İşlenecek taş yok (elindeki perleri bozmadan)' };
   }
 
   discard(seat, tileId) {
