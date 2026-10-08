@@ -695,3 +695,46 @@ kbd { display: inline-block; padding: 0 5px; border-radius: 4px; background: rgb
 .meld.meldflash { animation: meldflash .8s ease-out; }
 @keyframes meldflash { 0% { box-shadow: 0 0 0 3px var(--gold), 0 0 18px rgba(245,192,68,.8); } 100% { box-shadow: none; } }
 .rack .tile { will-change: transform; }
+
+/* ================= Sıra sende: ıstaka çevresinde nabız gibi atan ışık ================= */
+body.myturn .rack {
+  position: relative;
+  box-shadow: 0 10px 20px rgba(0,0,0,.5), 0 0 0 3px var(--gold), 0 0 22px 6px rgba(245,192,68,.55);
+  animation: rackglow 1.3s ease-in-out infinite;
+}
+body.myturn.awaitdraw .rack { animation-duration: .9s; }
+@keyframes rackglow {
+  0%, 100% { box-shadow: 0 10px 20px rgba(0,0,0,.5), 0 0 0 3px var(--gold), 0 0 14px 3px rgba(245,192,68,.45); }
+  50% { box-shadow: 0 10px 20px rgba(0,0,0,.5), 0 0 0 4px #ffe08a, 0 0 34px 12px rgba(245,192,68,.85); }
+}
+body.myturn.hurry .rack { animation: rackhurry .6s ease-in-out infinite; }
+@keyframes rackhurry {
+  0%, 100% { box-shadow: 0 10px 20px rgba(0,0,0,.5), 0 0 0 3px #e2402f, 0 0 14px 3px rgba(226,64,47,.45); }
+  50% { box-shadow: 0 10px 20px rgba(0,0,0,.5), 0 0 0 4px #ff8a73, 0 0 34px 12px rgba(226,64,47,.85); }
+}
+.turnflash {
+  position: fixed; left: 50%; top: 38%; z-index: 55; transform: translate(-50%, -50%) scale(.6);
+  padding: 10px 26px; border-radius: 30px; background: linear-gradient(#ffd66b, #e9a91f); color: #2b2418;
+  font-size: 22px; font-weight: 800; box-shadow: 0 10px 30px rgba(0,0,0,.5), 0 0 40px rgba(245,192,68,.7);
+  opacity: 0; pointer-events: none;
+}
+.turnflash.show { animation: flash 1.2s cubic-bezier(.2,.8,.25,1); }
+@keyframes flash {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.6); }
+  20% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
+  70% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(.95); }
+}
+.short .turnflash { font-size: 18px; top: 30%; }
+
+/* Geri al / öneri düğmeleri */
+.actions .icon-btn { padding: 6px 10px; font-size: 15px; }
+.short .actions .icon-btn { padding: 3px 8px; font-size: 14px; }
+.short .actions .icon-btn.hidden { display: none; }
+.rack .tile.hinted { animation: hinted .55s ease-in-out 4; }
+@keyframes hinted { 50% { transform: translateY(-14px); box-shadow: 0 3px 0 var(--ivory-edge), 0 0 0 3px #6fe39b, 0 0 16px #6fe39b; } }
+
+/* Konfeti */
+.confetti { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 80; pointer-events: none; display: none; }
+.confetti.on { display: block; }
+@media (prefers-reduced-motion: reduce) { body.myturn .rack { animation: none; } }

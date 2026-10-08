@@ -28,7 +28,18 @@ let handKey = null;
 let fresh = new Set();               // yeni çekilen taşlar
 let drag = null;
 let lastTap = { id: null, t: 0 };
-let pendingSlot = null; // sürükleyerek çekilen taşın bırakıldığı yuva
+let pendingSlot = null;
+// Istaka dizilimini geri alma (↶): kullanıcının yaptığı dizme/taşıma işlemlerinden önceki hâller
+let rackHistory = [];
+function pushRack() { rackHistory.push(slots.slice()); if (rackHistory.length > 15) rackHistory.shift(); }
+function undoRack() {
+  const prev = rackHistory.pop();
+  if (!prev) return;
+  const ids = new Set(S.hand.map(t => t.id));
+  slots = prev.map(id => (ids.has(id) ? id : null));
+  S.hand.forEach(t => { if (!slots.includes(t.id)) placeNew(t.id); });
+  renderGame();
+} // sürükleyerek çekilen taşın bırakıldığı yuva
 let scoresOpen = false;
 let wasMyTurn = false;
 const PREF_DEFAULT = { sound: true, vibrate: true, autoSort: true, confirmRisky: true, shapes: false };
@@ -108,6 +119,11 @@ function renderRooms() {
 renderRooms();
 $('#btnStart').onclick = () => socket.emit('start');
 $('#btnCopy').onclick = () => { navigator.clipboard?.writeText($('#wLink').textContent); toast('Bağlantı kopyalandı'); };
+$('#btnShare').onclick = async () => {
+  const url = $('#wLink').textContent, text = '101 Okey masama gel! 🎲';
+  if (navigator.share) { try { await navigator.share({ title: '101 Okey', text, url }); } catch (e) { /* vazgeçildi */ } }
+  else window.open('https://wa.me/?text=' + encodeURIComponent(text + ' ' + url), '_blank');
+};
 $('#btnScores').onclick = () => { scoresOpen = true; renderModal(); };
 $('#btnSettings').onclick = () => openSettings();
 const touch = matchMedia('(pointer: coarse)').matches;
@@ -218,9 +234,61 @@ function beep(notes, vol = 0.18, type = 'triangle') {
   } catch (e) { /* ses yok */ }
 }
 const buzz = ms => prefs.vibrate && navigator.vibrate?.(ms);
-function turnAlert() { buzz(60); beep([660, 880]); }
+function turnAlert() {
+  buzz([60, 40, 60]);
+  beep([660, 880]);
+  const f = $('#turnFlash');
+  f.classList.remove('show'); void f.offsetWidth; f.classList.add('show');
+  if (document.hidden) blinkTitle();
+}
+// Başka sekmedeyken başlık yanıp söner
+let titleTimer = null;
+function blinkTitle() {
+  clearInterval(titleTimer);
+  let on = false;
+  titleTimer = setInterval(() => {
+    if (!document.hidden || !myTurn()) { clearInterval(titleTimer); document.title = '101 Okey'; return; }
+    on = !on; document.title = on ? '🔔 Sıra sende!' : '101 Okey';
+  }, 900);
+}
+// Taş sesi: kısa, yumuşak bir "tak"
+function clack(vol = 0.08) {
+  if (!prefs.sound) return;
+  try {
+    actx = actx || new AudioContext();
+    const t = actx.currentTime, o = actx.createOscillator(), g = actx.createGain();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(420, t);
+    o.frequency.exponentialRampToValueAtTime(140, t + 0.05);
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
+    o.connect(g).connect(actx.destination);
+    o.start(t); o.stop(t + 0.09);
+  } catch (e) { /* ses yok */ }
+}
+
+// Oyun sırasında telefon ekranı kararmasın
+let wakeLock = null;
+async function keepAwake(on) {
+  try {
+    if (on && !wakeLock && navigator.wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => (wakeLock = null)); }
+    if (!on && wakeLock) { await wakeLock.release(); wakeLock = null; }
+  } catch (e) { /* desteklenmiyor */ }
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && S && !S.lobby) keepAwake(true); });
+// Android geri tuşu: oyundan atmak yerine sor
+let backGuard = false;
+window.addEventListener('popstate', () => {
+  if (!backGuard) return;
+  history.pushState({ g: 1 }, '');
+  if (S && !leaving) confirmLeave();
+});
 
 function show(id) {
+  const inGame = id === 'game' || id === 'waiting';
+  if (inGame && !backGuard) { backGuard = true; history.pushState({ g: 1 }, ''); }
+  if (!inGame) backGuard = false;
+  keepAwake(id === 'game');
   if (id === 'lobby' && $('#lobby').classList.contains('hidden')) socket.emit('rooms'); // lobiye dönünce listeyi tazele
   ['lobby', 'waiting', 'game'].forEach(x => $('#' + x).classList.toggle('hidden', x !== id));
   document.body.classList.toggle('ingame', id === 'game');
@@ -465,6 +533,7 @@ function syncHand() {
     sel = null;
     fresh.clear();
     flipped = new Set();
+    rackHistory = [];
     const sorted = S.hand.slice().sort((a, b) => tileKey(a) - tileKey(b)).map(t => t.id);
     slots = arrange([], sorted);
     if (prefs.autoSort) autoArrange('seri', true);
@@ -510,6 +579,7 @@ function autoArrange(mode, quiet) {
     } else {
       out = arrange(groups, rest);
     }
+    if (!quiet) pushRack();
     slots = out || arrangeLegacy(groups, rest);
     sel = null;
     renderGame();
@@ -605,6 +675,7 @@ function renderGame() {
   $('#pile').classList.toggle('crit', S.pile <= 3);
   $('#pile').title = canDraw ? 'Taş çek: dokun ya da ıstakaya sürükle' : `Yığında ${S.pile} taş`;
   document.body.classList.toggle('awaitdraw', canDraw);
+  document.body.classList.toggle('myturn', myTurn());
   pileWarning();
   ticker();
 
@@ -704,6 +775,7 @@ function runAnimations(before, changed) {
   const relOf = abs => (abs - you + 4) % 4;
   const leftAbs = (you + 3) % 4;
 
+  if ([...now.hand].some(id => !prev.hand.has(id)) || now.disc.some((d, i) => d > prev.disc[i])) clack();
   // Benim çektiğim taş: yığından ya da soldakinden ıstakadaki yerine
   const skipDraw = dragged.draw, skipDisc = dragged.discard;
   if (now.disc[S.you] > prev.disc[S.you]) dragged.discard = false;
@@ -880,7 +952,7 @@ function renderMelds() {
     const p = S.players[abs];
     const col = document.createElement('section');
     col.className = 'mcol';
-    col.innerHTML = `<header style="--c:${AVA[abs]}"><i></i><b>${r === 0 ? 'Sen' : esc(p.name)}</b><span class="badge ${p.openType === 'cift' ? 'pairb' : 'open'}">${p.openType === 'cift' ? 'Çift' : 'Seri'}</span></header>`;
+    col.innerHTML = `<header style="--c:${AVA[abs]}"><i></i><b>${r === 0 ? 'Sen' : esc(p.name)}</b><span class="badge ${p.openType === 'cift' ? 'pairb' : 'open'}">${p.openType === 'cift' ? 'Çift ' + (p.openPairs || '') : 'Seri ' + (p.openScore || '')}</span></header>`;
     list.filter(m => m.type !== 'pair').forEach(m => col.appendChild(meldEl(m, t, canNow)));
     const pairs = list.filter(m => m.type === 'pair');
     if (pairs.length) {
@@ -990,7 +1062,7 @@ function renderRack() {
         slot.appendChild(d);
       } else if (sel != null) {
         slot.classList.add('target');
-        slot.onclick = () => { moveTile(sel, i); sel = null; renderGame(); };
+        slot.onclick = () => { pushRack(); moveTile(sel, i); sel = null; renderGame(); };
       }
       row.appendChild(slot);
     }
@@ -1022,6 +1094,8 @@ function renderActions() {
     S.melds.some(x => Rules.attachOptions(x, t, S.okey).filter(o => o.kind === 'add').length === 1)).length : 0;
   btn('auto').classList.toggle('hidden', !islek);
   btn('auto').textContent = `İşle (${islek})`;
+  btn('undoRack').classList.toggle('hidden', !rackHistory.length);
+  btn('hint').classList.toggle('hidden', !playing() || S.mustOpenWith != null);
 
   let hint = '';
   const selT = sel != null ? tileById(sel) : null;
@@ -1192,6 +1266,17 @@ document.querySelector('.actions').onclick = e => {
   else if (a === 'open') doOpen();
   else if (a === 'undo') act({ type: 'undoTake' });
   else if (a === 'auto') act({ type: 'autoAttach' });
+  else if (a === 'undoRack') undoRack();
+  else if (a === 'hint') {
+    socket.emit('hint', id => {
+      if (id == null || !tileById(id)) return toast('Şu an öneri yok');
+      sel = id;
+      renderGame();
+      const el = document.querySelector(`#rack .tile[data-id="${id}"]`);
+      if (el) { el.classList.add('hinted'); setTimeout(() => el.classList.remove('hinted'), 2600); }
+      toast('💡 Öneri: işaretli taşı at (sağ alttaki alana dokun)');
+    });
+  }
 };
 
 // ---------- Sürükle-bırak (fare ve dokunmatik) ----------
@@ -1318,7 +1403,7 @@ function endDrag(e) {
   d.ghost.remove();
   d.over?.classList.remove('over');
   const tgt = e.type === 'pointerup' ? dropTargetAt(e.clientX, e.clientY) : null;
-  if (tgt?.dataset.slot != null) moveTile(d.id, +tgt.dataset.slot);
+  if (tgt?.dataset.slot != null) { pushRack(); moveTile(d.id, +tgt.dataset.slot); }
   else if (tgt?.dataset.choice) {
     const c = tgt.dataset.choice;
     attach(d.id, +tgt.dataset.meld, c === 'swap' ? { kind: 'swap' } : { kind: 'add', side: c.slice(4) });
@@ -1405,6 +1490,8 @@ function resultHtml() {
   let html = '';
   if (S.over && r.final) {
     const w = r.final.winners;
+    const ck = S.code + ':' + S.history.length + ':' + S.handIndex;
+    if (w.includes(S.you) && celebrated !== ck) { celebrated = ck; setTimeout(confetti, 200); }
     const mine = w.includes(S.you);
     html += `<div class="rbanner final ${mine ? 'me' : ''}"><div class="trophy">🏆</div><div>
       <small>${esli() && w.length === 2 ? 'Oyunu kazanan takım' : 'Oyunu kazanan'}</small>
@@ -1597,3 +1684,30 @@ socket.on('state', st => {
 });
 $('#btnHelpL').onclick = openHelp;
 $('#btnSettingsL').onclick = openSettings;
+
+// ---------- Kazanma kutlaması: konfeti ----------
+let celebrated = null;
+function confetti() {
+  if (reduceMotion) return;
+  const cv = $('#confetti'), cx = cv.getContext('2d');
+  cv.width = innerWidth * devicePixelRatio; cv.height = innerHeight * devicePixelRatio;
+  cv.classList.add('on');
+  const cols = ['#c8231f', '#d98500', '#1459c2', '#f5c044', '#2f9a5f', '#fbf5e4'];
+  const P = Array.from({ length: 160 }, () => ({
+    x: Math.random() * cv.width, y: -Math.random() * cv.height * 0.5,
+    vx: (Math.random() - 0.5) * 4 * devicePixelRatio, vy: (2 + Math.random() * 4) * devicePixelRatio,
+    s: (6 + Math.random() * 8) * devicePixelRatio, r: Math.random() * 6, vr: (Math.random() - 0.5) * 0.3,
+    c: cols[Math.floor(Math.random() * cols.length)],
+  }));
+  const t0 = performance.now();
+  (function frame(t) {
+    cx.clearRect(0, 0, cv.width, cv.height);
+    P.forEach(p => {
+      p.x += p.vx; p.y += p.vy; p.vy += 0.05 * devicePixelRatio; p.r += p.vr;
+      cx.save(); cx.translate(p.x, p.y); cx.rotate(p.r); cx.fillStyle = p.c; cx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); cx.restore();
+    });
+    if (t - t0 < 4000) requestAnimationFrame(frame);
+    else { cx.clearRect(0, 0, cv.width, cv.height); cv.classList.remove('on'); }
+  })(t0);
+  beep([523, 659, 784, 1047], 0.15);
+}

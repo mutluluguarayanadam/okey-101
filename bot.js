@@ -449,4 +449,11 @@ function fullTurn(g, seat) {
   if (g.phase === 'play' && g.turn === seat) play(g, seat);
 }
 
-module.exports = { solve, suggest, findPairs, draw, play, fullTurn, timeoutTurn, fallback };
+// "💡 Öneri": oyuncuya hangi taşı atması gerektiğini söyler (bot zekâsıyla)
+function hint(g, seat) {
+  if (g.turn !== seat || g.phase !== 'play') return null;
+  const t = chooseDiscard(g, seat);
+  return t ? t.id : null;
+}
+
+module.exports = { hint, solve, suggest, findPairs, draw, play, fullTurn, timeoutTurn, fallback };

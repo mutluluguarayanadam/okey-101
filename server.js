@@ -313,6 +313,12 @@ io.on('connection', socket => {
   });
 
   // "Öner" düğmesi: en iyi per dizilimi ve çiftler
+  socket.on('hint', cb => {
+    const room = roomOf(socket);
+    if (!room || !room.game || typeof cb !== 'function') return;
+    cb(Bot.hint(room.game, socket.data.seat));
+  });
+
   socket.on('suggest', (a, cb) => {
     if (typeof a === 'function') { cb = a; a = {}; }
     const room = roomOf(socket);

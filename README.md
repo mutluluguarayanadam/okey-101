@@ -24,6 +24,9 @@ Not: Ücretsiz sunucu 15 dakika kimse bağlanmazsa uyur; ilk girişte açılmas�
 ## Oynanış
 - **Seri diz / Çift diz:** Okey, yüzü açıkken kendi sayısıyla değerlendirilir; sağ tık / uzun basma ile ters çevirirsen okey (joker) olarak kullanılır. Açmadan önce barajı geçen en iyi dizilimi, açtıktan sonra bitirmek için en çok taşı yere indiren dizilimi kurar. Gruplar ıstakaya her zaman aralarında boşlukla yerleşir.
 - **Telefon (yatay):** Istaka ekranın tamamını kaplar. Taş çekme yeri sol altta (soldakinin attığı taş ve yığın), taş atma yeri sağ altta. Istakanın üstündeki ince çubukta ☰ menü (sohbet, ayarlar, tam ekran, puanlar, çıkış), gösterge, sıra bilgisi ve sadece o an kullanılabilen düğmeler var; süre ince bir çizgiyle gösterilir.
+- **Sıra sende:** ıstakanın çevresinde nabız gibi atan altın ışık (süre azalınca kırmızı), ortada kısa "Sıra sende!" yazısı, ses ve titreşim; başka sekmedeysen sekme başlığı yanıp söner.
+- **↶ Geri al:** Seri/çift diz ya da taş taşıma sonrası önceki dizilime döner. **💡 Öneri:** Hangi taşı atman gerektiğini işaretler.
+- Oyun sırasında telefon ekranı kararmaz; Android geri tuşu çıkmadan önce sorar. Bekleme odasında **Paylaş** ile davet bağlantısı gönderilir. Masada herkesin açış puanı görünür. Oyunu kazanınca konfeti.
 - Taşlar çekilirken, atılırken ve yere inerken animasyonla hareket eder; ıstakada taşlar kayarak yer değiştirir.
 - **Taş çekme:** Yığından ya da sol alttaki taştan, dokunarak ya da ıstakada istediğin yuvaya sürükleyerek çekersin. Sıra sendeyken yığında "Çek", soldaki taşta "Al" yazar.
 - Yığında 6, 3 ve 1 taş kalınca uyarı verilir. Son 10 saniyede süre halkası kırmızıya döner.
