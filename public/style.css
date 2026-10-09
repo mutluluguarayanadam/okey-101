@@ -178,17 +178,19 @@ body.ingame { overflow: hidden; position: fixed; inset: 0; }
 .pile.active { box-shadow: 0 3px 0 var(--ivory-edge), 3px 6px 0 #b9a676, 6px 9px 0 #a08e5f, 0 0 0 4px var(--gold); animation: pulse 1.4s ease-in-out infinite; }
 
 .melds {
-  flex: 1; min-height: 0; overflow: auto; padding: 4px;
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr));
-  gap: 10px; align-content: start; scrollbar-width: thin;
+  flex: 1; min-height: 0; display: flex; gap: 8px; padding: 6px; border-radius: 10px;
+  background-color: rgba(8, 30, 20, .35);
+  background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+  background-size: 22px 22px;
 }
-.melds .empty { grid-column: 1 / -1; margin: auto; padding: 20px; color: rgba(255,255,255,.35); font-size: 14px; text-align: center; }
-.mcol { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 8px; border-radius: 12px; background: rgba(0,0,0,.16); }
-.mcol header { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); width: 100%; }
-.mcol header i { width: 9px; height: 9px; border-radius: 50%; background: var(--c); flex: none; }
-.mcol header b { color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.badge.pairb { background: #2f6fb5; }
-.pairs { display: flex; flex-wrap: wrap; gap: 6px; }
+.bseri, .bcift { min-width: 0; min-height: 0; display: flex; flex-direction: column; flex-wrap: wrap; align-content: flex-start; gap: 4px 12px; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; position: relative; }
+.bseri { flex: 1; }
+.bcift { flex: none; width: calc(var(--sw) * 4 + 30px); padding-left: 8px; border-left: 1px solid rgba(255,255,255,.18); gap: 4px 6px; }
+.blabel { position: absolute; inset: 0; display: grid; place-items: center; color: rgba(255,255,255,.22); font-size: 13px; pointer-events: none; text-align: center; }
+.short .bcift { width: calc(var(--sw) * 2 + 18px); padding-left: 5px; }
+.short .melds { padding: 4px; gap: 5px; }
+.meld.own { box-shadow: inset 3px 0 0 var(--oc); padding-left: 5px; }
+.meld.own.can { box-shadow: inset 3px 0 0 var(--oc), 0 0 0 2px var(--gold), 0 0 16px 3px rgba(245,192,68,.65); }
 .meld { display: flex; flex-wrap: wrap; gap: 1px; padding: 3px; border-radius: 7px; max-width: 100%; background: rgba(0,0,0,.2); }
 .meld.can {
   cursor: pointer; background: rgba(245,192,68,.25);
@@ -317,80 +319,98 @@ table.scores tr.win td { color: var(--gold); font-weight: 700; }
 }
 
 /* ----- Telefon: yatay (alçak ekran) ----- */
-/* ----- Kısa yatay ekran (telefon yatay): body.short, JS ölçüme göre ekler ----- */
-.side, .menubtn, .turnbar { display: none; }
-.menupop { position: fixed; z-index: 45; left: max(8px, env(safe-area-inset-left)); bottom: calc(var(--th) * 2 + 60px); padding: 6px; border-radius: 12px; background: rgba(20,14,8,.96); box-shadow: 0 10px 30px rgba(0,0,0,.6); }
+/* ===================== Telefon yatay (body.short) — Okey Plus esinli düzen =====================
+   Üst şerit (menü · süre · üst oyuncu) / masa: [sol kenar | per tahtası | bilgi sütunu | sağ kenar] / [ÇİFT DİZ | ıstaka | SERİ DİZ] */
+.side, .menubtn, .turnbar, .mtop, .infocol, .bigdiz { display: none; }
+.menupop { position: fixed; z-index: 45; left: max(8px, env(safe-area-inset-left)); top: 34px; padding: 6px; border-radius: 12px; background: rgba(20,14,8,.96); box-shadow: 0 10px 30px rgba(0,0,0,.6); }
 .menupop .tbtns { display: flex; gap: 6px; }
 .menupop .tbtns button.icon { font-size: 20px; padding: 8px 10px; }
-.short #game { display: grid; grid-template-rows: minmax(0, 1fr) auto; grid-template-columns: 1fr; }
-.short .topbar { display: none; }
-.short .arena { min-height: 0; padding: max(3px, env(safe-area-inset-top)) max(4px, env(safe-area-inset-right)) 2px max(4px, env(safe-area-inset-left)); }
-.short .dock { display: block; padding: 0 max(4px, env(safe-area-inset-right)) max(3px, env(safe-area-inset-bottom)) max(4px, env(safe-area-inset-left)); }
-.short .rotatetip, .short .hint, .short .mechip { display: none !important; }
 
-/* İnce çubuk: ☰ · durum · puan ············ düğmeler */
-.short .dockbar { display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; margin: 0 0 3px; min-height: 28px; }
-.short .menubtn { display: inline-block; padding: 3px 9px; font-size: 16px; }
-.short .dockbar #status { flex: 0 1 auto; font-size: 12px; padding: 3px 9px; border-radius: 12px; background: rgba(0,0,0,.35); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 34vw; text-align: left; }
-.short .dockbar #status.myturn { background: rgba(245,192,68,.2); box-shadow: inset 0 0 0 1px var(--gold); }
-.short .handscore { flex: 1; display: flex; gap: 8px; font-size: 12px; white-space: nowrap; }
-.short .handscore b { font-size: 13px; }
-.short .actions { flex: none; flex-direction: row; flex-wrap: nowrap; width: auto; gap: 5px; }
-.short .actions button { flex: none; padding: 4px 10px; font-size: 12px; border-radius: 8px; box-shadow: 0 2px 0 #9c8c62; }
-.short .actions button.primary { box-shadow: 0 2px 0 #a3700c; }
-.short .actions button:disabled { display: none; }
-.short .actions button[data-act="open"]:disabled { display: inline-block; opacity: .35; }
+.short #game { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: 1fr; }
+.short .topbar, .short .rotatetip, .short .hint, .short .dockbar { display: none !important; }
 
-/* Süre çizgisi */
-.short .turnbar { display: block; height: 3px; margin: 0 6px 2px; border-radius: 2px; background: transparent; overflow: hidden; }
-.short .turnbar.on { background: rgba(255,255,255,.12); }
-.short .turnbar i { display: block; height: 100%; width: calc(var(--p, 0) * 100%); background: var(--gold); transition: width .25s linear; }
-body.hurry .turnbar i { background: #e2402f; }
+/* Üst şerit */
+.short .mtop { display: flex; align-items: center; gap: 8px; height: 28px; padding: max(2px, env(safe-area-inset-top)) max(6px, env(safe-area-inset-right)) 0 max(6px, env(safe-area-inset-left)); }
+.short .mtop .menubtn { display: inline-block; padding: 2px 9px; font-size: 16px; }
+.short .mt-timer { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 22px; padding: 0 10px; border-radius: 12px; background: rgba(0,0,0,.35); }
+.short .mt-timer #status { flex: none; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 50%; text-align: left; background: none; padding: 0; }
+.short .mt-timer #status.myturn { color: var(--gold); }
+.short .mt-bar { flex: 1; height: 5px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; }
+.short .mt-bar i { display: block; height: 100%; width: calc(var(--p, 1) * 100%); background: #7cc35a; transition: width .25s linear; }
+body.hurry .mt-bar i { background: #e2402f; }
 
-/* Istaka: ekran genişliğinin tamamı */
-.short .rack { width: 100%; max-width: none; padding: 4px 6px 0; }
-.short .rackrow { justify-content: center; padding-bottom: 5px; margin-bottom: 3px; }
-.short .rackrow::after { height: 5px; left: -6px; right: -6px; }
-
-/* Masa: oyuncular kenarda, çekme bölgesi sol altta, atma bölgesi sağ altta */
-.short .table { display: block; position: relative; padding: 0; border-width: 5px; border-radius: 18px; --sideW: calc(var(--sw) * 2 + 26px); }
-.short .player { position: absolute; z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 1px; text-align: center; }
-.short .p-top { top: 3px; left: 50%; transform: translateX(-50%); flex-direction: row; gap: 5px; padding: 2px 8px 2px 3px; border-radius: 20px; background: rgba(0,0,0,.35); }
-.short .p-left { left: 3px; top: 47%; transform: translateY(-50%); width: calc(var(--sideW) - 6px); }
-.short .p-right { right: 3px; top: 47%; transform: translateY(-50%); width: calc(var(--sideW) - 6px); }
-.short .ava { width: 28px; height: 28px; font-size: 11px; }
-.short .ava.emo { font-size: 16px; }
-.short .ava.team { box-shadow: 0 0 0 2px rgba(0,0,0,.35), 0 0 0 4px var(--tc); }
-.short .player.turn .ava::before { inset: -4px; }
-.short .pinfo { font-size: 10px; gap: 0; align-items: center; }
-.short .p-top .pinfo { flex-direction: row; align-items: center; gap: 5px; }
-.short .pinfo b { font-size: 11px; max-width: 70px; }
-.short .p-top .pinfo b { max-width: 120px; }
-.short .pinfo small { font-size: 10px; }
+/* Masa */
+.short .arena { min-height: 0; padding: 2px max(4px, env(safe-area-inset-right)) 2px max(4px, env(safe-area-inset-left)); }
+.short .table {
+  --edge: calc(var(--sw) * 1.15 + 12px);
+  display: grid; padding: 4px; gap: 4px 6px; border-width: 4px; border-radius: 14px;
+  grid-template-columns: var(--edge) minmax(0, 1fr) auto var(--edge);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: "c2 board info c1" "p3 board info p1" "c3 board info c0";
+}
+.short #corner2 { grid-area: c2; } .short #corner1 { grid-area: c1; }
+.short #corner3 { grid-area: c3; } .short #corner0 { grid-area: c0; }
+.short #pos3 { grid-area: p3; } .short #pos1 { grid-area: p1; }
+.short .center { grid-area: board; position: relative; display: flex; flex-direction: column; min-height: 0; }
+.short .infocol { grid-area: info; display: flex; flex-direction: column; align-items: stretch; gap: 5px; min-height: 0; overflow: hidden; }
+.short .corner { position: static; display: flex; justify-content: center; align-items: flex-start; min-width: 0; }
+.short #corner3, .short #corner0 { align-items: flex-end; }
+.short .corner small, .short .stack small { display: none; }
+.short .corner .dropzone { width: calc(var(--sw) * 1.15 + 4px); height: calc(var(--sw) * 1.15 * 1.38 + 4px); border-radius: 6px; }
+.short .corner .dropzone .tile { --w: calc(var(--sw) * 1.15); --h: calc(var(--sw) * 1.15 * 1.38); }
+.short .corner.target .dropzone::after { font-size: 12px; }
+.short .dcount { top: -5px; right: -5px; min-width: 15px; height: 15px; font-size: 9px; }
+/* Yan oyuncular: dikey şerit (avatar + ad) */
+.short .p-left, .short .p-right { position: static; transform: none; width: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center; min-height: 0; overflow: hidden; }
+.short .p-left .pinfo, .short .p-right .pinfo { writing-mode: vertical-rl; align-items: center; gap: 3px; }
+.short .p-left .pinfo { transform: rotate(180deg); }
+.short .player .pinfo b { font-size: 11px; max-width: 90px; max-height: 90px; }
+.short .player .pinfo small { font-size: 10px; }
 .short .pinfo .tot { display: none; }
 .short .tags { justify-content: center; gap: 2px; }
 .short .tags .badge { font-size: 9px; padding: 0 4px; }
-.short .corner { position: absolute; z-index: 2; min-width: 0; }
-.short .c-tl { top: 4px; left: 4px; } .short .c-tr { top: 4px; right: 4px; }
-.short .c-bl { bottom: 4px; left: 4px; }
-.short .c-br { bottom: 4px; right: 4px; }
-.short .corner small, .short .stack small { display: none; }
-.short .corner .dropzone { width: calc(var(--sw) + 6px); height: calc(var(--sw) * 1.38 + 6px); border-radius: 6px; }
-.short .corner .dropzone .tile { --w: var(--sw); --h: calc(var(--sw) * 1.38); }
-/* Senin atış alanın: geniş, başparmağın altında */
-.short .c-br .dropzone { width: calc(var(--sideW) - 8px); height: calc(var(--sw) * 1.38 + 14px); }
-.short .corner.target .dropzone::after { font-size: 13px; }
-.short .dcount { top: -5px; right: -5px; min-width: 15px; height: 15px; font-size: 9px; }
-/* Çekme bölgesi: soldakinin attığı taş ve yanında yığın (sol alt) */
-.short .table > #pile { position: absolute; z-index: 2; left: calc(var(--sw) + 16px); bottom: 4px; width: var(--sw); height: calc(var(--sw) * 1.38); font-size: 11px; }
-.short .dockbar .stack { flex-direction: row; align-items: center; gap: 4px; }
-.short .dockbar .stack small { display: inline; font-size: 10px; color: var(--muted); order: -1; }
-.short .dockbar #indicator .tile { --w: 18px; --h: 25px; font-size: 11px; }
-.short .center { position: absolute; top: 32px; bottom: 4px; left: var(--sideW); right: var(--sideW); display: block; }
-.short .melds { height: 100%; grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)); gap: 5px; padding: 2px; }
-.short .mcol { padding: 4px; gap: 3px; border-radius: 8px; }
-.short .mcol header { font-size: 10px; }
-.short .chatpanel { position: fixed; left: 8px; right: 8px; bottom: calc(var(--th) * 2 + 50px); z-index: 25; margin: 0; padding: 6px; }
+.short .ava { width: 26px; height: 26px; font-size: 11px; }
+.short .ava.emo { font-size: 15px; }
+.short .ava.team { box-shadow: 0 0 0 2px rgba(0,0,0,.35), 0 0 0 4px var(--tc); }
+.short .player.turn .ava::before { inset: -4px; }
+/* Üst oyuncu, üst şeritte yatay */
+.short .mtop .player { position: static; display: flex; flex-direction: row; align-items: center; gap: 5px; padding: 1px 8px 1px 2px; border-radius: 14px; background: rgba(0,0,0,.35); transform: none; }
+.short .mtop .player .ava { width: 20px; height: 20px; font-size: 9px; }
+.short .mtop .player .ava.emo { font-size: 12px; }
+.short .mtop .player .pinfo { flex-direction: row; gap: 5px; align-items: center; writing-mode: horizontal-tb; transform: none; }
+.short .mtop .player .tags { flex-wrap: nowrap; }
+.short .mtop .player .pinfo b { max-width: 110px; }
+/* Bilgi sütunu: gösterge, yığın (kalan sayısı üstünde), işlem düğmeleri */
+.short .infocol .stack { flex-direction: row; justify-content: center; gap: 6px; }
+.short .infocol #indicator .tile { --w: var(--sw); --h: calc(var(--sw) * 1.38); }
+.short .infocol .pile { align-self: center; width: var(--sw); height: calc(var(--sw) * 1.38); font-size: 12px; }
+.short .infocol .actions { display: flex; flex-direction: column; gap: 4px; width: auto; margin-top: auto; }
+.short .infocol .actions button { padding: 5px 8px; font-size: 12px; border-radius: 8px; white-space: nowrap; box-shadow: 0 2px 0 #9c8c62; }
+.short .infocol .actions button.primary { box-shadow: 0 2px 0 #a3700c; }
+.short .infocol .actions button[data-act="seri"], .short .infocol .actions button[data-act="cift"] { display: none; }
+.short .infocol .actions button.hidden { display: none; }
+.short .infocol .actions button:disabled:not([data-act="open"]) { display: none; }
+
+/* Istaka satırı: [ÇİFT DİZ] ıstaka [SERİ DİZ] */
+.short .dock { display: block; padding: 0 max(4px, env(safe-area-inset-right)) max(3px, env(safe-area-inset-bottom)) max(4px, env(safe-area-inset-left)); }
+.short .rackline { display: flex; align-items: stretch; gap: 5px; position: relative; }
+.short .bigdiz {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; flex: none; width: 50px;
+  padding: 4px 2px; border-radius: 10px; font-size: 13px; font-weight: 800; line-height: 1.05; letter-spacing: .02em;
+  background: linear-gradient(#2a4f8f, #16305e); color: #fff; box-shadow: 0 3px 0 #0c1d3d, 0 4px 8px rgba(0,0,0,.4);
+}
+.short .bigdiz small { font-size: 16px; }
+.short .rack { flex: 1; width: auto; max-width: none; padding: 4px 6px 0; }
+.short .rackrow { justify-content: center; padding-bottom: 5px; margin-bottom: 3px; }
+.short .rackrow::after { height: 5px; left: -6px; right: -6px; }
+/* El puanı rozeti ıstakanın üstünde */
+.short .rackline .handscore {
+  position: absolute; z-index: 6; right: 70px; top: -12px; display: flex; gap: 8px; flex: none;
+  padding: 1px 10px; border-radius: 10px; font-size: 11px; background: #8b2a1f; color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.4); white-space: nowrap;
+}
+.short .rackline .handscore b { font-size: 12px; color: #fff; }
+.short .rackline .handscore.ready { background: #1d4f9c; }
+.short .chatpanel { position: fixed; left: 8px; right: 8px; top: 34px; z-index: 25; margin: 0; padding: 6px; }
 .short .chatlog { max-height: 54px; }
 .short .modal { padding: 6px; }
 .short .modal .panel { padding: 12px 14px; max-height: 96vh; }
@@ -590,10 +610,6 @@ button.danger { background: linear-gradient(#f08a72, #d9553a); color: #fff; box-
   .lobbypanel { padding: 20px 16px; }
 }
 
-.short .side #status { flex: none; }
-.short .p-top .pinfo { flex-direction: row; align-items: center; gap: 5px; }
-.short .p-top .tags { flex-wrap: nowrap; }
-.short .center { top: 34px; }
 .rtable th:nth-child(2) { text-align: left; }
 .short .rtable .amini { width: 20px; height: 20px; font-size: 12px; }
 .short .rbanner { padding: 6px 10px; gap: 8px; }
@@ -673,7 +689,6 @@ body.shapes .tile[data-c="3"] i { border-radius: 0; background: none; width: 0; 
 kbd { display: inline-block; padding: 0 5px; border-radius: 4px; background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.25); font-size: 12px; }
 .short .ticker { font-size: 11px; bottom: 3px; }
 .short .gscore { top: -7px; font-size: 9px; height: 14px; line-height: 14px; min-width: 15px; }
-.short .p-top .pinfo b { max-width: 120px; }
 
 /* Elde ters çevrilen taş: okey gibi sade arka yüz */
 .rack .tile.flipped { cursor: grab; }
@@ -683,10 +698,7 @@ kbd { display: inline-block; padding: 0 5px; border-radius: 4px; background: rgb
 .rack .tile { -webkit-touch-callout: none; }
 
 /* Telefon yatay: yan oyuncularda "Açtı" yazısı yerine avatarda yeşil tik; Al/Çek etiketi taşın üst kenarında */
-.short .p-left .tags .badge.open, .short .p-right .tags .badge.open { display: none; }
-.short .player.opened .ava::after { content: '✓'; position: absolute; right: -4px; bottom: -3px; width: 14px; height: 14px; border-radius: 50%; background: #2f9a5f; color: #fff; font-size: 9px; font-weight: 800; display: grid; place-items: center; box-shadow: 0 0 0 2px rgba(0,0,0,.4); }
 .short .pile.active::after, .short .corner.takeable .dropzone::before { bottom: auto; top: -9px; font-size: 10px; padding: 0 5px; }
-.short .p-left, .short .p-right { top: 44%; }
 
 /* Animasyonlar */
 .flyer { position: fixed; z-index: 60; margin: 0; pointer-events: none; box-shadow: 0 10px 22px rgba(0,0,0,.45) !important; }
@@ -738,3 +750,16 @@ body.myturn.hurry .rack { animation: rackhurry .6s ease-in-out infinite; }
 .confetti { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 80; pointer-events: none; display: none; }
 .confetti.on { display: block; }
 @media (prefers-reduced-motion: reduce) { body.myturn .rack { animation: none; } }
+
+/* Per tahtası taşları (telefonda küçük) */
+.melds .tile.sm { --w: var(--bw, var(--sw)); --h: calc(var(--bw, var(--sw)) * 1.38); }
+.short .bseri { gap: 3px 10px; }
+.short .bcift { width: calc(var(--bw) * 2 + 16px); }
+.short .meld { padding: 2px 2px 2px 5px; }
+/* Bilgi sütunu aralıkları */
+.short .infocol { gap: 14px; padding-top: 2px; }
+/* Büyük dizme düğmelerinde minik taş simgesi */
+.bigdiz .mini { display: flex; gap: 1px; margin-bottom: 3px; }
+.bigdiz .mini i { font-style: normal; width: 12px; height: 16px; border-radius: 2px; background: var(--ivory); color: var(--red); font-size: 9px; font-weight: 800; display: grid; place-items: center; box-shadow: 0 1px 0 var(--ivory-edge); }
+.bigdiz .mini i:nth-child(2) { color: var(--yellow); }
+.bigdiz .mini i:nth-child(3) { color: var(--blue); }

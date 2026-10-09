@@ -299,22 +299,31 @@ function show(id) {
 // Telefon yatayda (kısa ekran) üst çubuk ve düğmeler sağdaki tek sütuna taşınır
 // Telefon yatayda: üst çubuk kalkar; simgeler ☰ menüsüne, durum ıstakanın üstündeki çubuğa,
 // yığın ve gösterge sol alt köşeye (çekme bölgesi) taşınır.
+// Telefon yatayda öğeler yeni düzene taşınır; masaüstünde eski yerlerine döner
 function placeControls(short) {
   const top = $('.topbar'), bar = $('.dockbar'), status = $('#status'), tb = $('.tbtns');
-  const stock = $('.stock'), table = $('.table'), pile = $('#pile'), ind = $('#indicator').parentNode;
+  const stock = $('.stock'), pile = $('#pile'), ind = $('#indicator').parentNode;
+  const acts = $('.actions'), hs = $('#handScore'), menu = $('#btnMenu'), pos2 = $('#pos2'), table = $('.table');
   if (short) {
-    if (tb.parentNode !== $('#menuPop')) {
-      $('#menuPop').append(tb);
-      bar.insertBefore(status, $('#handScore'));
-      bar.insertBefore(ind, status);   // gösterge ince çubukta
-      table.append(pile);              // yığın sol altta, soldakinin taşının yanında
-    }
-  } else if (tb.parentNode !== top) {
+    if (tb.parentNode === $('#menuPop')) return;
+    $('#menuPop').append(tb);
+    $('.mt-left').append(menu);
+    $('.mt-right').append(pos2);
+    $('.mt-timer').insertBefore(status, $('.mt-bar'));
+    $('#infoCol').append(ind, pile, acts);
+    $('#rackline').append(hs);
+  } else {
+    if (tb.parentNode === top) return;
     top.append(status, tb);
     stock.append(ind, pile);
+    bar.insertBefore(menu, $('#meChip'));
+    bar.append(hs, acts);
+    table.insertBefore(pos2, table.firstChild);
     $('#menuPop').classList.add('hidden');
   }
 }
+$('#bigSeri').onclick = () => S && !S.lobby && autoArrange('seri');
+$('#bigCift').onclick = () => S && !S.lobby && autoArrange('cift');
 $('#btnMenu').onclick = e => { e.stopPropagation(); $('#menuPop').classList.toggle('hidden'); };
 $('#menuPop').addEventListener('click', () => $('#menuPop').classList.add('hidden'));
 document.addEventListener('pointerdown', e => {
@@ -328,15 +337,18 @@ function fitLayout() {
   placeControls(short);
   const gap = vw < 700 ? 2 : 3;
   const bar = 0;
-  const byW = (vw - (short ? 22 : 34) - 14 * gap) / 15;
-  // Kısa ekranda ıstaka (iki sıra) ekranın ~%42'sini alır; geri kalanı masa ve ince çubuk
-  const byH = short ? ((vh * 0.42 - 16) / 2) / 1.38 : vh * 0.125;
+  // Kısa ekranda ıstakanın iki yanında büyük ÇİFT DİZ / SERİ DİZ düğmeleri var (2 x 55px)
+  const byW = (vw - (short ? 22 + 112 : 34) - 14 * gap) / 15;
+  // Kısa ekranda ıstaka (iki sıra) ekranın ~%40'ını alır; geri kalanı masa ve üst şerit
+  const byH = short ? ((vh * 0.40 - 16) / 2) / 1.38 : vh * 0.125;
   const tw = Math.max(16, Math.min(54, byW, byH));
   const root = document.documentElement.style;
   root.setProperty('--tw', tw.toFixed(1) + 'px');
   root.setProperty('--gap', gap + 'px');
   root.setProperty('--bar', bar + 'px');
   root.setProperty('--sw', Math.max(14, Math.min(30, tw * (short ? 0.62 : 0.68))).toFixed(1) + 'px');
+  // Per tahtasındaki taşlar: telefonda ıstakadakilerin yarısı kadar (daha çok per görünsün)
+  root.setProperty('--bw', Math.max(15, Math.min(30, tw * (short ? 0.5 : 0.68))).toFixed(1) + 'px');
 }
 window.addEventListener('resize', () => { if (S && !S.lobby) fitLayout(); });
 window.addEventListener('orientationchange', () => setTimeout(fitLayout, 250));
@@ -910,7 +922,7 @@ function renderPlayer(el, abs) {
   const tags = [];
   if (partner(abs)) tags.push('<span class="badge mate">Eşin</span>');
   if (!p.bot && !p.connected) tags.push('<span class="badge off">Bot oynuyor</span>');
-  if (p.opened) tags.push(`<span class="badge open">${p.openType === 'cift' ? 'Çift' : 'Açtı'}</span>`);
+  if (p.opened) tags.push(`<span class="badge ${p.openType === 'cift' ? 'pairb' : 'open'}">${p.openType === 'cift' ? 'Çift ' + (p.openPairs || '') : 'Seri ' + (p.openScore || '')}</span>`);
   if (p.penalty) tags.push(`<span class="badge off">+${p.penalty}</span>`);
   el.classList.toggle('opened', !!p.opened);
   el.innerHTML = avaHtml(abs) +
@@ -959,36 +971,31 @@ function renderCorner(r) {
   }
 }
 
+// Per tahtası: seriler solda, çiftler sağda; perler alt alta ve sütun sütun dizilir.
+// Kimin peri olduğu, perin solundaki renkli çizgiyle gösterilir (oyuncunun avatar rengi).
+function ownerColor(abs) {
+  const p = S.players[abs];
+  return p.avatar && !p.bot ? AV_C[p.avatar.c] : AVA[abs];
+}
 function renderMelds() {
   const box = $('#melds');
-  box.innerHTML = '';
-  if (!S.melds.length) {
-    box.innerHTML = '<div class="empty">Açılan perler burada görünecek</div>';
-    return;
-  }
+  box.innerHTML = '<div class="bseri"></div><div class="bcift"></div>';
+  const bs = box.querySelector('.bseri'), bc = box.querySelector('.bcift');
   const tid = drag ? drag.id : sel;
   let t = tid != null ? tileById(tid) : null;
   // Çevrilmemiş okey seçilince perler parlamaz (okey olduğunu belli etmesin); çevirince okey gibi işlenir
   if (t && Rules.isJoker(t, S.okey) && !flipped.has(t.id)) t = null;
   const canNow = playing() && me().opened;
-  for (let r = 0; r < 4; r++) {
-    const abs = (S.you + r) % 4;
-    const list = S.melds.filter(m => m.owner === abs);
-    if (!list.length) continue;
-    const p = S.players[abs];
-    const col = document.createElement('section');
-    col.className = 'mcol';
-    col.innerHTML = `<header style="--c:${AVA[abs]}"><i></i><b>${r === 0 ? 'Sen' : esc(p.name)}</b><span class="badge ${p.openType === 'cift' ? 'pairb' : 'open'}">${p.openType === 'cift' ? 'Çift ' + (p.openPairs || '') : 'Seri ' + (p.openScore || '')}</span></header>`;
-    list.filter(m => m.type !== 'pair').forEach(m => col.appendChild(meldEl(m, t, canNow)));
-    const pairs = list.filter(m => m.type === 'pair');
-    if (pairs.length) {
-      const pw = document.createElement('div');
-      pw.className = 'pairs';
-      pairs.forEach(m => pw.appendChild(meldEl(m, t, canNow)));
-      col.appendChild(pw);
-    }
-    box.appendChild(col);
-  }
+  const rel = m => (m.owner - S.you + 4) % 4;
+  S.melds.slice().sort((a, b) => rel(a) - rel(b) || a.id - b.id).forEach(m => {
+    const el = meldEl(m, t, canNow);
+    el.classList.add('own');
+    el.style.setProperty('--oc', ownerColor(m.owner));
+    el.title = (el.title ? el.title + ' · ' : '') + (m.owner === S.you ? 'Senin perin' : S.players[m.owner].name);
+    (m.type === 'pair' ? bc : bs).appendChild(el);
+  });
+  if (!bs.children.length) bs.innerHTML = '<span class="blabel">Açılan seriler burada görünecek</span>';
+  if (!bc.children.length) bc.innerHTML = '<span class="blabel">Çiftler</span>';
 }
 
 function meldEl(m, t, canNow) {
@@ -1043,10 +1050,12 @@ function renderMe() {
   const hs = $('#handScore');
   if (!m.opened) {
     const b = S.barrier;
+    hs.classList.toggle('ready', ev.score >= b.per || ev.pairs.length >= b.cift);
     hs.innerHTML = `<span>Seri <b class="${ev.score >= b.per ? 'ok' : ''}">${ev.score}</b>/${b.per}</span><span>Çift <b class="${ev.pairs.length >= b.cift ? 'ok' : ''}">${ev.pairs.length}</b>/${b.cift}</span>`;
   } else {
     // Çevrilmemiş okey yüzündeki sayıyla sayılır (okeyi ele vermesin)
     const left = S.hand.reduce((s, t) => s + (Rules.isJoker(t, S.okey) && !flipped.has(t.id) ? t.v : Rules.tilePoints(t, S.okey)), 0);
+    hs.classList.remove('ready');
     hs.innerHTML = `<span>Elde kalan <b>${left}</b></span>`;
   }
 }
@@ -1453,6 +1462,7 @@ setInterval(() => {
   const p = S.deadline ? Math.max(0, Math.min(1, left / (S.turnMs || 45000))) : 1;
   document.querySelectorAll('.turn .ava').forEach(a => a.style.setProperty('--p', p));
   $('#turnbar').style.setProperty('--p', myTurn() ? p : 0);
+  $('.mt-bar').style.setProperty('--p', S.phase === 'ended' ? 0 : p);
   $('#turnbar').classList.toggle('on', myTurn());
   const hurry = myTurn() && left < 10000;
   document.body.classList.toggle('hurry', hurry);
