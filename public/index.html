@@ -74,10 +74,10 @@
             <div class="stack"><div id="indicator"></div><small>Gösterge</small></div>
             <button id="pile" class="pile" title="Yığından çek"><span id="pileCount"></span></button>
           </div>
-          <div id="melds" class="melds"></div>
+          <div id="melds" class="melds"><div class="bseri" id="seriBoard"></div><div class="bcift" id="ciftBoard"></div></div>
           <div id="ticker" class="ticker"></div>
         </div>
-        <div id="infoCol" class="infocol"></div>
+        <div id="infoCol" class="infocol"><div id="modeInfo" class="modeinfo"></div></div>
       </div>
     </div>
 
@@ -99,7 +99,8 @@
           <button data-act="cift">Çift diz</button>
           <button data-act="undo" class="warn">Geri koy (101 ceza)</button>
           <button data-act="auto" class="hidden">İşle</button>
-          <button data-act="open" class="primary">Elini aç</button>
+          <button data-act="openSeri" class="primary act-open">Seri aç</button>
+          <button data-act="openCift" class="primary act-open">Çift aç</button>
         </div>
       </div>
       <div id="turnbar" class="turnbar"><i></i></div>

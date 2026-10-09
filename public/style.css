@@ -763,3 +763,112 @@ body.myturn.hurry .rack { animation: rackhurry .6s ease-in-out infinite; }
 .bigdiz .mini i { font-style: normal; width: 12px; height: 16px; border-radius: 2px; background: var(--ivory); color: var(--red); font-size: 9px; font-weight: 800; display: grid; place-items: center; box-shadow: 0 1px 0 var(--ivory-edge); }
 .bigdiz .mini i:nth-child(2) { color: var(--yellow); }
 .bigdiz .mini i:nth-child(3) { color: var(--blue); }
+
+/* ======================= MAVİ TEMA (Okey Plus esinli) ======================= */
+:root {
+  --room: #0b2a44; --felt: #1f6496; --felt-dark: #123f63; --navy: #12304b; --navy-line: rgba(255,255,255,.07);
+  --wood-hi: #f7bd52; --wood: #e49b2d; --wood-dark: #b46e18;
+}
+body {
+  background:
+    radial-gradient(circle at 0 0, transparent 16px, rgba(255,255,255,.05) 17px, transparent 19px) 0 0 / 44px 44px,
+    radial-gradient(circle at 22px 22px, transparent 9px, rgba(255,255,255,.04) 10px, transparent 12px) 0 0 / 44px 44px,
+    radial-gradient(ellipse at 50% 35%, #2a77ad 0%, #17507c 45%, #0c2f4d 100%);
+  background-attachment: fixed;
+}
+.table {
+  background:
+    linear-gradient(var(--navy-line) 1px, transparent 1px) padding-box,
+    linear-gradient(90deg, var(--navy-line) 1px, transparent 1px) padding-box,
+    linear-gradient(180deg, #1a4d78, #10304e) padding-box,
+    linear-gradient(135deg, #3d78a8, #1d4670 50%, #0f2c47) border-box;
+  background-size: 24px 24px, 24px 24px, auto, auto;
+}
+.melds { background-color: rgba(6, 20, 36, .55); }
+.panel { background: linear-gradient(160deg, rgba(31,100,150,.95), rgba(16,52,84,.97)); box-shadow: 0 0 0 8px #1d4670, 0 20px 50px rgba(0,0,0,.6); }
+.topbar { background: rgba(5, 18, 32, .55); }
+.bigdiz { background: linear-gradient(#2b5598, #142c55); }
+
+/* ======================= TELEFON YATAY: Okey Plus ölçüleri ======================= */
+.short #game { background: none; }
+.short .arena { padding: 4px max(4px, env(safe-area-inset-right)) 4px max(4px, env(safe-area-inset-left)); }
+.short .table {
+  --strip: 26px;
+  --colL: calc(var(--cw) + 8px);
+  --infow: calc(var(--dw) + 12px);
+  --ciftw: calc((var(--bw) * 2 + 10px) * 2 + 16px);
+  --rcw: 82px;
+  display: grid; padding: 0; gap: 6px; border: 0; border-radius: 0; background: none; box-shadow: none;
+  grid-template-columns: var(--strip) var(--colL) minmax(0, 1fr) var(--infow) var(--ciftw) var(--rcw) var(--strip);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "p3 c2 board info cift c1 p1"
+    "p3 .  board info cift acts p1"
+    "p3 c3 board info cift c0 p1";
+}
+/* Per tahtası: koyu lacivert, ızgaralı, ekranın büyük kısmı */
+.short .center { grid-area: board; display: flex; min-height: 0; position: relative; }
+.short .melds, .short #ciftBoard {
+  border-radius: 8px; background-color: var(--navy);
+  background-image: linear-gradient(var(--navy-line) 1px, transparent 1px), linear-gradient(90deg, var(--navy-line) 1px, transparent 1px);
+  background-size: calc(var(--bw) + 2px) calc(var(--bw) * 1.38 + 4px);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.06), 0 4px 14px rgba(0,0,0,.35);
+}
+.short .melds { flex: 1; padding: 5px; }
+.short #seriBoard { gap: 3px 14px; }
+/* Çiftler: ayrı lacivert alan, iki sütun çizgili */
+.short #ciftBoard {
+  grid-area: cift; width: auto; padding: 5px; border-left: 0; gap: 3px 8px;
+  background-image: linear-gradient(90deg, transparent calc(50% - 1px), rgba(255,255,255,.14) calc(50% - 1px), rgba(255,255,255,.14) 50%, transparent 50%),
+    linear-gradient(var(--navy-line) 1px, transparent 1px);
+  background-size: 100% 100%, 100% calc(var(--bw) * 1.38 + 4px);
+}
+.short .melds .tile.sm, .short #ciftBoard .tile.sm { --w: var(--bw); --h: calc(var(--bw) * 1.38); }
+.short .meld { padding: 1px 1px 1px 4px; background: transparent; }
+/* Bilgi sütunu: oyun etiketleri, gösterge, yığın (ıstaka taşı boyunda) */
+.short .infocol { grid-area: info; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 0; }
+.short .modeinfo { display: flex; flex-direction: column; gap: 3px; width: 100%; }
+.short .modeinfo span { display: block; padding: 2px 0; border-radius: 5px; background: rgba(5,18,32,.6); color: #dbe8f5; font-size: 10px; font-weight: 600; text-align: center; letter-spacing: .02em; }
+.short .infocol #indicator .tile, .short .infocol .pile { --w: var(--dw); --h: calc(var(--dw) * 1.38); width: var(--dw); height: calc(var(--dw) * 1.38); }
+.short .infocol .pile { font-size: calc(var(--dw) * .4); }
+.short .infocol .stack small { display: none; }
+/* Köşe taşları: büyük */
+.short .corner { display: flex; justify-content: center; min-width: 0; }
+.short .corner .dropzone { width: calc(var(--cw) + 6px); height: calc(var(--cw) * 1.38 + 6px); }
+.short .corner .dropzone .tile { --w: var(--cw); --h: calc(var(--cw) * 1.38); }
+.short #corner0 .dropzone { width: calc(var(--rcw) - 4px); }
+.short #corner2, .short #corner1 { align-items: flex-start; }
+.short #corner3, .short #corner0 { align-items: flex-end; }
+/* Yan oyuncular: kenarda dikey şerit */
+.short #pos3, .short #pos1 {
+  grid-row: 1 / -1; align-self: stretch; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  gap: 6px; padding: 6px 0; border-radius: 8px; background: rgba(5,18,32,.5); overflow: hidden;
+}
+.short #pos3 .pinfo { writing-mode: vertical-rl; transform: rotate(180deg); }
+.short #pos1 .pinfo { writing-mode: vertical-rl; transform: none; }
+.short #pos3 .ava, .short #pos1 .ava { width: 22px; height: 22px; font-size: 9px; }
+.short #pos3 .ava.emo, .short #pos1 .ava.emo { font-size: 13px; }
+/* Sağ sütun: işlem düğmeleri (açık zemin, lacivert yazı) */
+.short .table > .actions { grid-area: acts; display: flex; flex-direction: column; justify-content: center; gap: 5px; width: auto; min-height: 0; overflow: hidden; }
+.short .table > .actions button {
+  padding: 6px 4px; font-size: 11px; font-weight: 800; letter-spacing: .02em; text-transform: uppercase; border-radius: 8px; white-space: nowrap;
+  background: linear-gradient(#f4f8fc, #cfdcea); color: #10294a; box-shadow: 0 3px 0 #8ba3bf, 0 4px 8px rgba(0,0,0,.35);
+}
+.short .table > .actions button.ready { background: linear-gradient(#ffe08a, #f2b31f); color: #2b2418; box-shadow: 0 3px 0 #a3700c, 0 0 0 3px rgba(245,192,68,.35); }
+.short .table > .actions button:disabled { opacity: .5; }
+.short .table > .actions button.hidden, .short .table > .actions [data-act="seri"], .short .table > .actions [data-act="cift"] { display: none; }
+.short .table > .actions .icon-btn { font-size: 14px; padding: 4px; }
+.short .table > .actions button.warn { background: linear-gradient(#ffb36b, #e7832a); color: #2b1606; text-transform: none; white-space: normal; line-height: 1.1; }
+/* Istaka satırı: turuncu ahşap ıstaka, iki yanında lacivert dizme düğmeleri */
+.short .rackline { gap: 6px; }
+.short .bigdiz { width: 52px; font-size: 12px; }
+.short .rack { flex: 1; padding: 4px 8px 0; }
+.short .rackrow { justify-content: flex-start; }
+.short .rackline .handscore { right: auto; left: 60%; top: -11px; }
+/* İnce ayar: bilgi sütunu genişliği ve yan şeritler */
+.short .table { --infow: max(calc(var(--dw) + 12px), 66px); --strip: 30px; }
+.short #pos3 .pinfo small, .short #pos1 .pinfo small { display: none; }
+.short #pos3 .pinfo, .short #pos1 .pinfo { gap: 4px; }
+.short #pos3 .pinfo b, .short #pos1 .pinfo b { font-size: 11px; max-height: 120px; }
+.short #pos3 .tags .badge, .short #pos1 .tags .badge { font-size: 9px; padding: 2px 1px; }
+.short .modeinfo span { font-size: 9.5px; white-space: nowrap; overflow: hidden; text-overflow: clip; }

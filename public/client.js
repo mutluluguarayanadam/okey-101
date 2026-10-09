@@ -310,12 +310,14 @@ function placeControls(short) {
     $('.mt-left').append(menu);
     $('.mt-right').append(pos2);
     $('.mt-timer').insertBefore(status, $('.mt-bar'));
-    $('#infoCol').append(ind, pile, acts);
+    $('#infoCol').append(ind, pile);
+    table.append(acts, $('#ciftBoard'));
     $('#rackline').append(hs);
   } else {
     if (tb.parentNode === top) return;
     top.append(status, tb);
     stock.append(ind, pile);
+    $('#melds').append($('#ciftBoard'));
     bar.insertBefore(menu, $('#meChip'));
     bar.append(hs, acts);
     table.insertBefore(pos2, table.firstChild);
@@ -339,8 +341,8 @@ function fitLayout() {
   const bar = 0;
   // Kısa ekranda ıstakanın iki yanında büyük ÇİFT DİZ / SERİ DİZ düğmeleri var (2 x 55px)
   const byW = (vw - (short ? 22 + 112 : 34) - 14 * gap) / 15;
-  // Kısa ekranda ıstaka (iki sıra) ekranın ~%40'ını alır; geri kalanı masa ve üst şerit
-  const byH = short ? ((vh * 0.40 - 16) / 2) / 1.38 : vh * 0.125;
+  // Telefonda Okey Plus oranları: ıstaka ekran yüksekliğinin ~%27'si, taş genişliği ekranın ~%4'ü
+  const byH = short ? Math.min(((vh * 0.27 - 14) / 2) / 1.38, vw * 0.042) : vh * 0.125;
   const tw = Math.max(16, Math.min(54, byW, byH));
   const root = document.documentElement.style;
   root.setProperty('--tw', tw.toFixed(1) + 'px');
@@ -349,6 +351,9 @@ function fitLayout() {
   root.setProperty('--sw', Math.max(14, Math.min(30, tw * (short ? 0.62 : 0.68))).toFixed(1) + 'px');
   // Per tahtasındaki taşlar: telefonda ıstakadakilerin yarısı kadar (daha çok per görünsün)
   root.setProperty('--bw', Math.max(15, Math.min(30, tw * (short ? 0.5 : 0.68))).toFixed(1) + 'px');
+  // Telefonda çekme bölgesi (gösterge, yığın) ıstaka taşı boyunda; köşe taşları ~%90'ı
+  root.setProperty('--dw', (short ? Math.max(24, tw * 1.0) : tw * 0.68).toFixed(1) + 'px');
+  root.setProperty('--cw', (short ? Math.max(22, tw * 0.9) : tw).toFixed(1) + 'px');
 }
 window.addEventListener('resize', () => { if (S && !S.lobby) fitLayout(); });
 window.addEventListener('orientationchange', () => setTimeout(fitLayout, 250));
@@ -718,6 +723,8 @@ function renderGame() {
   ticker();
 
   renderMelds();
+  const o = S.opts || {};
+  $('#modeInfo').innerHTML = `<span>${o.mode === 'esli' ? 'Eşli' : 'Tekli'}</span><span>${o.katlamali ? 'Katlamalı' : 'Katlamasız'}</span><span>${S.handIndex}/${S.hands} El</span>`;
   renderMe();
   if (!(drag && drag.moved)) renderRack();
   renderActions();
@@ -834,7 +841,7 @@ function runAnimations(before, changed) {
   // Elimden masaya inen taşlar (açma, indirme, işleme)
   S.melds.forEach(m => m.tiles.forEach(t => {
     if (!prev.hand.has(t.id) || now.hand.has(t.id)) return;
-    const el = document.querySelector(`#melds .tile[data-tid="${t.id}"]`);
+    const el = document.querySelector(`.meld .tile[data-tid="${t.id}"]`);
     if (el) fly(before.rack.get(t.id), el, null, { dur: 420 });
   }));
 
@@ -859,7 +866,7 @@ function runAnimations(before, changed) {
 
   // Yeni açılan perler belirerek gelir, işlenen perler parlar
   S.melds.forEach(m => {
-    const el = document.querySelector(`#melds .meld[data-meld="${m.id}"]`);
+    const el = document.querySelector(`.meld[data-meld="${m.id}"]`);
     if (!el) return;
     if (!prev.melds.has(m.id)) el.classList.add('meldin');
     else if (prev.melds.get(m.id) !== m.tiles.length) el.classList.add('meldflash');
@@ -978,9 +985,9 @@ function ownerColor(abs) {
   return p.avatar && !p.bot ? AV_C[p.avatar.c] : AVA[abs];
 }
 function renderMelds() {
-  const box = $('#melds');
-  box.innerHTML = '<div class="bseri"></div><div class="bcift"></div>';
-  const bs = box.querySelector('.bseri'), bc = box.querySelector('.bcift');
+  const bs = $('#seriBoard'), bc = $('#ciftBoard');
+  bs.innerHTML = '';
+  bc.innerHTML = '';
   const tid = drag ? drag.id : sel;
   let t = tid != null ? tileById(tid) : null;
   // Çevrilmemiş okey seçilince perler parlamaz (okey olduğunu belli etmesin); çevirince okey gibi işlenir
@@ -1109,19 +1116,31 @@ function renderActions() {
   const m = me();
   const ev = evalRack();
   const btn = a => document.querySelector(`[data-act="${a}"]`);
-  const ob = btn('open');
-  let ready = false;
+  // İki ayrı düğme (Okey Plus gibi): SERİ AÇ ve ÇİFT AÇ; açtıktan sonra SERİ / ÇİFT İNDİR
+  const os = btn('openSeri'), oc = btn('openCift');
+  const ciftArea = S.players.some(p => p.openType === 'cift');
+  let sReady, cReady;
   if (!m.opened) {
-    if (ev.score >= S.barrier.per) { ob.textContent = `Seri aç (${ev.score})`; ready = true; }
-    else if (ev.pairs.length >= S.barrier.cift) { ob.textContent = `Çift aç (${ev.pairs.length})`; ready = true; }
-    else ob.textContent = 'Elini aç';
+    sReady = ev.score >= S.barrier.per;
+    cReady = ev.pairs.length >= S.barrier.cift;
+    os.textContent = sReady ? `Seri aç (${ev.score})` : 'Seri aç';
+    oc.textContent = cReady ? `Çift aç (${ev.pairs.length})` : 'Çift aç';
+    os.classList.remove('hidden');
+    oc.classList.remove('hidden');
   } else {
-    const list = layable(ev);
-    ob.textContent = list.length ? `İndir (${list.length})` : 'Perleri indir';
-    ready = list.length > 0;
+    const nm = m.openType === 'per' ? ev.melds.length : 0;
+    const np = m.openType === 'cift' || ciftArea ? ev.pairs.length : 0;
+    sReady = nm > 0;
+    cReady = np > 0;
+    os.textContent = nm ? `Seri indir (${nm})` : 'Seri indir';
+    oc.textContent = np ? `Çift indir (${np})` : 'Çift indir';
+    os.classList.toggle('hidden', m.openType === 'cift');
+    oc.classList.toggle('hidden', m.openType === 'per' && !ciftArea);
   }
-  ob.disabled = !playing() || !ready;
-  ob.classList.toggle('ready', playing() && ready);
+  os.disabled = !playing() || !sReady;
+  oc.disabled = !playing() || !cReady;
+  os.classList.toggle('ready', playing() && sReady);
+  oc.classList.toggle('ready', playing() && cReady);
   btn('seri').disabled = btn('cift').disabled = S.phase === 'ended';
   btn('undo').classList.toggle('hidden', S.mustOpenWith == null);
   // "İşle": işlenebilen normal taşları tek dokunuşla masaya işler (okey ve okey alma hariç)
@@ -1226,17 +1245,12 @@ function layable(ev) {
 }
 
 // Açmadan / indirmeden önce önizleme: hangi perler gidecek, oyuncu seçer
-function doOpen() {
+function doOpen(mode) {
   const m = me();
   const ev = evalRack();
-  let groups, pairMode;
-  if (!m.opened) {
-    pairMode = !(ev.score >= S.barrier.per) && ev.pairs.length >= S.barrier.cift;
-    groups = pairMode ? ev.pairs.map(p => p.ids) : ev.melds.map(g => g.ids);
-  } else {
-    groups = layable(ev);
-    pairMode = m.openType === 'cift';
-  }
+  if (!mode) mode = !m.opened ? (ev.score >= S.barrier.per ? 'seri' : 'cift') : (m.openType === 'cift' ? 'cift' : 'seri');
+  const pairMode = mode === 'cift';
+  const groups = pairMode ? ev.pairs.map(p => p.ids) : ev.melds.map(g => g.ids);
   if (!groups.length) return;
   const picked = groups.map(() => true);
   const draw = () => {
@@ -1298,7 +1312,8 @@ document.querySelector('.actions').onclick = e => {
   const a = e.target.dataset.act;
   if (!a || !S) return;
   if (a === 'seri' || a === 'cift') autoArrange(a);
-  else if (a === 'open') doOpen();
+  else if (a === 'openSeri') doOpen('seri');
+  else if (a === 'openCift') doOpen('cift');
   else if (a === 'undo') act({ type: 'undoTake' });
   else if (a === 'auto') act({ type: 'autoAttach' });
   else if (a === 'undoRack') undoRack();
@@ -1703,7 +1718,10 @@ document.addEventListener('keydown', e => {
   else if (k === 's') autoArrange('seri');
   else if (k === 'c' || k === 'ç') autoArrange('cift');
   else if ((k === 'delete' || k === 'backspace') && sel != null) { e.preventDefault(); discard(sel); }
-  else if (k === 'enter' && !document.querySelector('[data-act="open"]').disabled) doOpen();
+  else if (k === 'enter') {
+    if (!document.querySelector('[data-act="openSeri"]').disabled) doOpen('seri');
+    else if (!document.querySelector('[data-act="openCift"]').disabled) doOpen('cift');
+  }
 });
 
 // ---------- Hemen oyna ----------
