@@ -34,6 +34,8 @@
   // Açarken / yere indirirken bir seri en fazla 5 taş olabilir (1234567 -> 1234 + 567 gibi bölünür).
   // Masadaki perlere işleme ile seri 13'e kadar uzayabilir (tur başına sınır oyun motorunda).
   const MAX_OPEN_RUN = 5;
+  // Masadaki bir seri işleme ile 13 taşa (1'den 13'e) kadar uzayabilir.
+  const MAX_TABLE_RUN = 13;
 
   // Taşlar verilen sırayla bir seri oluşturuyor mu? (okeyler bulundukları yerin değerini alır)
   // Seriler 1..13 arasıdır: 12-13-1 ve 13-1-2 GEÇERSİZ.
@@ -151,7 +153,7 @@
     if (meld.type === 'pair') return out; // çifte taş eklenmez, sadece okeyi alınabilir
     if (meld.type === 'run') {
       const n = meld.tiles.length, s = meld.start;
-      if (n < 13) {
+      if (n < MAX_TABLE_RUN) {
         if (isJoker(t, okey)) {
           if (s > 1) out.push({ kind: 'add', side: 'left', order: [t].concat(meld.tiles), start: s - 1 });
           if (s + n <= 13) out.push({ kind: 'add', side: 'right', order: meld.tiles.concat([t]), start: s });
@@ -172,7 +174,7 @@
     return !!attachInfo(meld, t, okey);
   }
 
-  const api = { COLOR_NAMES, okeyOf, isJoker, eff, tileName, tilePoints, runFromOrder, analyzeMeld, makeMeld, analyzePair, jokerSwapIndex, attachInfo, attachOptions, canAttach, isTooLongRun, MAX_OPEN_RUN };
+  const api = { COLOR_NAMES, okeyOf, isJoker, eff, tileName, tilePoints, runFromOrder, analyzeMeld, makeMeld, analyzePair, jokerSwapIndex, attachInfo, attachOptions, canAttach, isTooLongRun, MAX_OPEN_RUN, MAX_TABLE_RUN };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Rules = api;
 })(this);

@@ -654,7 +654,7 @@ body.drawing .slot.over { background: rgba(245,192,68,.55); }
 
 /* Yeni atılan taş */
 .tile.just { animation: pop .6s ease-out; }
-@keyframes pop { 0% { transform: scale(1.5) translateY(-6px); box-shadow: 0 0 0 4px var(--gold); } 100% { transform: none; } }
+@keyframes pop { 0% { transform: scale(1.18) translateY(-4px); box-shadow: 0 0 0 4px var(--gold); } 100% { transform: none; } }
 
 /* Son hamle şeridi */
 .center { position: relative; }

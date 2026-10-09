@@ -60,7 +60,7 @@ class Game {
     this.mustOpenWith = null;
     this.undoUsed = false;
     this.takenJoker = null;   // bu tur masadan alınan okey (aynı tur kullanılmalı)
-    this.attachCount = {};    // bu tur her pere kaç taş işlendi (tur başına en fazla 2)
+    this.attachCount = {};    // bu tur her perin sağına/soluna kaç taş işlendi (her yana en fazla 2)
     this.result = null;
     this.handIndex = this.handNo + 1;
     this.turnCount++;
@@ -189,6 +189,7 @@ class Game {
     this._remove(me, all);
     analyzed.forEach(a => this._pushMeld(seat, a));
     me.opened = true;
+    this.openStamp = (this.openStamp || 0) + 1; // el açılınca hamle süresi baştan başlar
     me.openType = isPairs ? 'cift' : 'per';
     me.openedAt = this.turnCount;
     if (isPairs) me.openPairs = gTiles.length;
@@ -268,8 +269,9 @@ class Game {
     }
 
     if (me.hand.length < 2) return { err: 'Atmak için elinde en az bir taş kalmalı' };
-    if ((this.attachCount[meld.id] || 0) >= 2) return { err: 'Bir pere bir turda en fazla 2 taş işlenebilir' };
-    this.attachCount[meld.id] = (this.attachCount[meld.id] || 0) + 1;
+    const cnt = this.attachCount[meld.id] || (this.attachCount[meld.id] = { left: 0, right: 0 });
+    if (cnt[info.side] >= 2) return { err: `Bir perin ${info.side === 'left' ? 'soluna' : 'sağına'} aynı turda en fazla 2 taş işlenebilir` };
+    cnt[info.side]++;
     meld.tiles = info.order;
     if (info.start != null) meld.start = info.start;
     this._remove(me, [tileId]);
@@ -280,7 +282,8 @@ class Game {
 
   // Taş şu an bu pere işlenebilir mi? (tur başına 2 taş sınırı dahil; okey alma sınırsız)
   canAttachNow(m, t) {
-    return R.attachOptions(m, t, this.okey).some(o => o.kind === 'swap' || (this.attachCount[m.id] || 0) < 2);
+    const c = this.attachCount[m.id] || { left: 0, right: 0 };
+    return R.attachOptions(m, t, this.okey).some(o => o.kind === 'swap' || c[o.side] < 2);
   }
 
   // "İşle" düğmesi: işlenebilen taşları (okey hariç, okey alma hariç) masaya işler
@@ -299,13 +302,14 @@ class Game {
         .filter(t => !R.isJoker(t, this.okey) && !keep.has(t.id))
         .map(t => ({ t, ms: this.melds.filter(m => {
           const adds = R.attachOptions(m, t, this.okey).filter(o => o.kind === 'add');
-          return adds.length === 1 && (this.attachCount[m.id] || 0) < 2;
+          return adds.length === 1 && (this.attachCount[m.id] || { left: 0, right: 0 })[adds[0].side] < 2;
         }) }))
         .filter(x => x.ms.length)
         .sort((a, b) => a.ms.length - b.ms.length);
       for (const { t, ms } of cands) {
         if (me.hand.length <= 1) break;
-        const m = ms.sort((a, b) => (this.attachCount[a.id] || 0) - (this.attachCount[b.id] || 0))[0];
+        const used = x => { const c = this.attachCount[x.id]; return c ? c.left + c.right : 0; };
+        const m = ms.sort((a, b) => used(a) - used(b))[0];
         const add = R.attachOptions(m, t, this.okey).find(o => o.kind === 'add');
         if (this.addToMeld(seat, t.id, m.id, add).ok) { count++; changed = true; break; }
       }
@@ -447,6 +451,7 @@ class Game {
       phase: this.phase,
       mustOpenWith: this.turn === seat ? this.mustOpenWith : null,
       takenJoker: this.turn === seat ? this.takenJoker : null,
+      attachCount: this.turn === seat ? this.attachCount : {},
       barrier: this.barrier(seat),
       opts: this.opts,
       history: this.history,

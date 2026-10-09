@@ -121,7 +121,7 @@ function schedule(room) {
   let key;
   if (g.phase === 'ended') key = 'end' + g.turnCount;
   else if (automated(room, i)) key = `${g.turnCount}:${g.phase}:auto`;
-  else key = `${g.turnCount}:human`;
+  else key = `${g.turnCount}:${g.openStamp || 0}:human`; // el açılınca süre baştan başlar
   if (key === room.timerKey) return;
   clearTimeout(room.timer);
   room.timerKey = key;
@@ -291,7 +291,10 @@ io.on('connection', socket => {
         case 'drawPile': r = g.drawPile(i); break;
         case 'drawDiscard': r = g.drawDiscard(i); break;
         case 'undoTake': r = g.undoTake(i); break;
-        case 'open': r = g.open(i, a.groups); break;
+        case 'open':
+          r = g.open(i, a.groups);
+          if (r.ok) room.timerKey = null; // elini açanın süresi sıfırlanıp yeniden başlar
+          break;
         case 'lay':
           r = { err: 'İndirilecek grup yok' };
           for (const ids of Array.isArray(a.groups) ? a.groups : []) {

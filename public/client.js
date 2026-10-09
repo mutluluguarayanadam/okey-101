@@ -340,17 +340,20 @@ function fitLayout() {
   const gap = vw < 700 ? 2 : 3;
   const bar = 0;
   // Kısa ekranda ıstakanın iki yanında büyük ÇİFT DİZ / SERİ DİZ düğmeleri var (2 x 55px)
-  const byW = (vw - (short ? 22 + 112 : 34) - 14 * gap) / 15;
-  // Telefonda Okey Plus oranları: ıstaka ekran yüksekliğinin ~%27'si, taş genişliği ekranın ~%4'ü
-  const byH = short ? Math.min(((vh * 0.27 - 14) / 2) / 1.38, vw * 0.042) : vh * 0.125;
-  const tw = Math.max(16, Math.min(54, byW, byH));
+  const PHI = 1.618;
+  // Telefon: ıstakanın iki yanında büyük ÇİFT DİZ / SERİ DİZ düğmeleri var (2 x 55px)
+  // Masaüstü: altın oran — ıstaka genişliği ekranın 1/φ'si (%61,8)
+  const byW = short ? (vw - 22 - 112 - 14 * gap) / 15 : (vw / PHI - 40 - 14 * gap) / 15;
+  // Telefon: Okey Plus oranları (ıstaka yüksekliğin ~%27'si). Masaüstü: ıstaka, masa + ıstaka yüksekliğinin en fazla %38,2'si
+  const byH = short ? Math.min(((vh * 0.27 - 14) / 2) / 1.38, vw * 0.042) : (((vh - 110) * (1 - 1 / PHI) - 30) / 2) / 1.38;
+  const tw = Math.max(16, Math.min(short ? 54 : 96, byW, byH));
   const root = document.documentElement.style;
   root.setProperty('--tw', tw.toFixed(1) + 'px');
   root.setProperty('--gap', gap + 'px');
   root.setProperty('--bar', bar + 'px');
-  root.setProperty('--sw', Math.max(14, Math.min(30, tw * (short ? 0.62 : 0.68))).toFixed(1) + 'px');
+  root.setProperty('--sw', Math.max(14, Math.min(short ? 30 : 38, tw * (short ? 0.62 : 0.5))).toFixed(1) + 'px');
   // Per tahtasındaki taşlar: telefonda ıstakadakilerin yarısı kadar (daha çok per görünsün)
-  root.setProperty('--bw', Math.max(15, Math.min(30, tw * (short ? 0.5 : 0.68))).toFixed(1) + 'px');
+  root.setProperty('--bw', Math.max(15, Math.min(short ? 30 : 38, tw * 0.5)).toFixed(1) + 'px');
   // Telefonda çekme bölgesi (gösterge, yığın) ıstaka taşı boyunda; köşe taşları ~%90'ı
   root.setProperty('--dw', (short ? Math.max(24, tw * 1.0) : tw * 0.68).toFixed(1) + 'px');
   root.setProperty('--cw', (short ? Math.max(22, tw * 0.9) : tw).toFixed(1) + 'px');
@@ -777,6 +780,7 @@ function fly(from, toEl, proto, opts = {}) {
   ], { duration: opts.dur || 380, easing: 'cubic-bezier(.2,.8,.25,1)', delay: opts.delay || 0, fill: 'backwards' });
   const done = () => { c.remove(); toEl.style.visibility = ''; };
   a.onfinish = done; a.oncancel = done;
+  setTimeout(done, 1500); // her ihtimale karşı
 }
 
 // Hedef bir nokta (eleman değil) ise: kopyayı oraya uçurup söndür
@@ -791,7 +795,8 @@ function flyTo(fromEl, from, to, opts = {}) {
     { transform: 'translate(0,0) scale(1)', opacity: 1 },
     { transform: `translate(${dx}px, ${dy}px) scale(.6)`, opacity: 0.2 },
   ], { duration: opts.dur || 420, easing: 'cubic-bezier(.4,.1,.3,1)' });
-  a.onfinish = () => c.remove();
+  a.onfinish = a.oncancel = () => c.remove();
+  setTimeout(() => c.remove(), 1500); // her ihtimale karşı
 }
 
 function runAnimations(before, changed) {
@@ -1010,7 +1015,9 @@ function meldEl(m, t, canNow) {
   d.className = 'meld' + (m.type === 'pair' ? ' pair' : '');
   d.dataset.meld = m.id;
   const tiles = m.tiles.map(x => tileEl(x, true));
-  const opts = t ? Rules.attachOptions(m, t, S.okey) : [];
+  // Bu tur o yana 2 taş işlendiyse o yan artık önerilmez (okey alma her zaman serbest)
+  const used = (S.attachCount || {})[m.id] || { left: 0, right: 0 };
+  const opts = t ? Rules.attachOptions(m, t, S.okey).filter(o => o.kind === 'swap' || (used[o.side] || 0) < 2) : [];
   if (opts.length && canNow) {
     d.classList.add('can');
     // Her seçenek ayrı bir hedef: "+" başa/sona ekler, "Al" okeyi alır. Uygulama kendi seçmez.
@@ -1459,7 +1466,8 @@ function endDrag(e) {
     attach(d.id, +tgt.dataset.meld, c === 'swap' ? { kind: 'swap' } : { kind: 'add', side: c.slice(4) });
   } else if (tgt?.dataset.meld != null) {
     const m = S.melds.find(x => x.id === +tgt.dataset.meld);
-    const opts = m ? Rules.attachOptions(m, tileById(d.id), S.okey) : [];
+    const usedD = m ? (S.attachCount || {})[m.id] || { left: 0, right: 0 } : {};
+    const opts = m ? Rules.attachOptions(m, tileById(d.id), S.okey).filter(o => o.kind === 'swap' || (usedD[o.side] || 0) < 2) : [];
     if (opts.length === 1) attach(d.id, m.id, choiceOf(opts[0]));
     else if (opts.length > 1) toast('Birden fazla yol var: taşı + ya da Al üzerine bırak');
   }

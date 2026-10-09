@@ -244,6 +244,7 @@ function draw(g, seat) {
 const X = {
   slowK: +(process.env.X_SLOW ?? 3),       // açmayı bekletmek için en fazla kaç taş eksik olabilir (0 = kapalı)
   slowPile: +(process.env.X_SLOWPILE ?? 9), // yığında en az bu kadar taş varken beklet
+  slowAll: +(process.env.X_SLOWALL ?? 1),  // başkası açmış olsa da (risk düşükse) bitirmek için beklet (ölçümde zararsız, uzman davranışı)
   minOpen: +(process.env.X_MIN ?? 1),      // açarken barajı geçecek kadar per indir, gerisini sakla
   hold: +(process.env.X_HOLD ?? 0),        // açtıktan sonra perleri elde tut (ölçümde zarar ettirdi, kapalı)
   holdPile: +(process.env.X_HOLDPILE ?? 8),
@@ -252,6 +253,8 @@ const X = {
   lookN: +(process.env.X_LOOKN ?? 16),
   lookW: +(process.env.X_LOOKW ?? 3),
   lookC: +(process.env.X_LOOKC ?? 3),
+  early: +(process.env.X_EARLY ?? 0),      // erken oyunda (yığın >= bu sayı) kimse açmamışken açmayı beklet (0 = kapalı)
+  hold1: +(process.env.X_HOLD1 ?? 0),      // açtığı turda sadece açılışı indir, kalan perleri sonraki turda
 };
 
 // Bu tur eli bitirebilir miyim? (en çok taşlı dizilim + masaya işlenebilecek kalanlar, en az 1 taş atmak için kalır)
@@ -273,8 +276,12 @@ function riskHigh(g, seat) {
 
 // Açmayı bekletmeli mi? Elden bitme (puanlar x2) için: kimse açmamış, yığın dolu, bitirmeye 2-3 taş kalmış
 function delayOpen(g, seat) {
-  if (!X.slowK || g.mustOpenWith != null) return false;
-  if (g.seats.some((s, i) => i !== seat && s.opened)) return false;
+  if (g.mustOpenWith != null) return false;
+  // Erken oyun: yığın doluyken ve kimse açmamışken açma (el gelişsin, bilgi verme); bitirebiliyorsa beklemez
+  if (X.early && g.pile.length >= X.early && !g.seats.some((s, i) => i !== seat && s.opened) && !finishable(g, seat).can) return true;
+  if (!X.slowK) return false;
+  if (!X.slowAll && g.seats.some((s, i) => i !== seat && s.opened)) return false;
+  if (riskHigh(g, seat)) return false;
   if (g.pile.length < X.slowPile) return false;
   const f = finishable(g, seat);
   if (f.can) return false; // şimdi bitirebiliyor: aç ve bitir
@@ -406,7 +413,9 @@ function chooseDiscard(g, seat) {
 function layAndAttach(g, seat, reserve) {
   const me = g.seats[seat];
   const ok = g.okey;
-  const holdMelds = X.hold && me.openType === 'per' && !riskHigh(g, seat) && !finishable(g, seat).can;
+  // Açtığı turda (uzman gibi) sadece açılışı indir; kalan perler sonraki turda
+  const justOpened = X.hold1 && me.openedAt === g.turnCount;
+  const holdMelds = me.openType === 'per' && !finishable(g, seat).can && ((X.hold && !riskHigh(g, seat)) || justOpened);
   const isJ = t => R.isJoker(t, ok);
   const usable = () => me.hand.filter(t => t !== reserve);
   const ciftArea = () => g.seats.some(x => x.openType === 'cift');

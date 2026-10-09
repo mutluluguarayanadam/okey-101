@@ -22,6 +22,7 @@ Tarayıcıda http://localhost:3000 aç.
 Not: Ücretsiz sunucu 15 dakika kimse bağlanmazsa uyur; ilk girişte açılması ~1 dakika sürebilir. Sunucu yeniden başlarsa süren oyunlar silinir.
 
 ## Oynanış
+- **Masaüstü (altın oran):** Istaka ekran genişliğinin ~%61,8'i (1/φ).
 - **Seri diz amaca göre dizer:** Açmadan önce perlerden sonra yarım perleri (iki taşı hazır seri/grup) ikişer ayırır; açtıktan sonra masaya işlenebilecek taşları ayrı bir grupta toplar. **İşle** düğmesi elindeki perleri bozmaz, tur başına 2 işleme hakkını verimli kullanır.
 - **Botlar:** Masada kimse açmamışken ve elden bitmeye 2-3 taş kalmışken açmayı bekletir (elden bitme puanları ikiye katlar); açarken barajı geçecek kadarını indirir; taş atarken görünmeyen taşlardan örnekler çekerek elin gelecekte ne kadar gelişeceğine bakar.
 - **Seri diz / Çift diz:** Okey, yüzü açıkken kendi sayısıyla değerlendirilir; sağ tık / uzun basma ile ters çevirirsen okey (joker) olarak kullanılır. Açmadan önce barajı geçen en iyi dizilimi, açtıktan sonra bitirmek için en çok taşı yere indiren dizilimi kurar. Gruplar ıstakaya her zaman aralarında boşlukla yerleşir.
@@ -58,7 +59,8 @@ Not: Ücretsiz sunucu 15 dakika kimse bağlanmazsa uyur; ilk girişte açılmas�
 - Açmak için en az 101 puanlık seri ya da en az 5 çift gerekir. Okey, yerine geçtiği taşın değerini alır ve dizildiği yerde kalır.
 - Soldan taş alan, elini açmamışsa o taşla açmak zorundadır. Açamazsa ya da açmak istemezse taşı geri koyar ve 101 ceza yazılır.
 - Seri açan yeni seri indirebilir. Masada çift açan varsa çift alanına çift de indirebilir. Çift açan yeni seri açamaz, sadece çift indirir ve işler.
-- Masadaki bir pere **bir turda en fazla 2 taş** işlenebilir; toplamda sınır yoktur (seri işlenerek 13'e kadar uzayabilir). O tur sınırı dolmuş bir pere uyan taşı atmak işlek sayılmaz.
+- İşleme: masadaki bir perin **sağına bir turda en fazla 2, soluna en fazla 2** taş işlenebilir; toplamda sınır yoktur (seri 13 taşa kadar uzayabilir). O tur bir yanı dolmuş pere uyan taşı atmak işlek sayılmaz.
+- Elini açınca hamle süresi baştan başlar.
 - Elini açan, yerdeki okeyin yerine geçen taşı koyup okeyi alabilir: seriden, 4'lü gruptan ya da çiftten (çiftte okeyin eşiyle aynı taş konur). 3'lü gruptaki ve iki okeyli çiftteki okey belirsiz olduğu için alınamaz. Okeyi almak kimseye ceza yazdırmaz; ama alınan okey aynı tur kullanılmazsa alana 101 ceza yazılır.
 - Okey atmak ya da işlek taş atmak 101 cezadır (bitiş taşı hariç). Yerdeki bir okeyi alabilecek taş da işlek sayılır.
 - Okey göstergenin bir üstüdür; ekranda ayrıca gösterilmez. Okey elde kendi yüzüyle durur; oyuncu istediği taşı sağ tık (telefonda uzun basma) ile ters çevirebilir. Masada (perlerde, atılanlarda) okey ters çevrilmiş, numarasız görünür.
