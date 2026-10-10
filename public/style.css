@@ -1007,3 +1007,5 @@ body:not(.short) .turnbar.low i { background: #e2402f; }
 /* El puanı rozetinde gidilmesi gereken yön */
 .handscore .lead { color: #ffe08a; }
 .handscore .lead::before { content: '▲ '; font-size: .8em; }
+/* Istakadaki ters çevrili okeyin altında küçük "OKEY" yazısı (masada yine sade görünür) */
+.rack .tile.joker .okeylbl { position: absolute; left: 0; right: 0; bottom: 14%; font-style: normal; font-size: calc(var(--w) * .2); font-weight: 800; letter-spacing: .04em; color: #c9a75a; text-align: center; }

@@ -459,8 +459,8 @@ function tileEl(t, small, inRack) {
   } else {
     if (inRack && flipped.has(t.id)) {
       d.classList.add('joker', 'flipped');
-      d.innerHTML = '';
-      d.title = 'Ters çevrilmiş taş (sağ tık / uzun bas: çevir)';
+      d.innerHTML = S && Rules.isJoker(t, S.okey) ? '<em class="okeylbl">OKEY</em>' : '';
+      d.title = 'Ters çevrilmiş taş: okey olarak sayılır (sağ tık / uzun bas: yüzünü aç)';
     } else if (!inRack && S && t.id != null && Rules.isJoker(t, S.okey)) {
       // Gerçek okey masadaki gibi ters çevrilmiş görünür: numarasız, sade bir taş
       d.classList.add('joker');
@@ -476,8 +476,8 @@ function tileEl(t, small, inRack) {
 }
 
 // ---------- Istaka mantığı ----------
-// Istaka değerlendirmesi oyuncunun bildiğine göre yapılır: okey yüzü açıkken yüzündeki sayıdır,
-// oyuncu ters çevirdiyse okeydir (joker). Sahte okey her zaman okeyin yerine geçtiği taştır.
+// Istaka değerlendirmesi: okey ele ters çevrili gelir ve okeydir (joker); oyuncu yüzünü açarsa
+// yüzündeki sayıdır. Sahte okey her zaman okeyin yerine geçtiği taştır.
 const VOKEY = { c: -9, v: -9 };
 function vt(t) {
   if (!t) return t;
@@ -570,7 +570,8 @@ function syncHand() {
     handKey = key;
     sel = null;
     fresh.clear();
-    flipped = new Set();
+    // Okey ele ters çevrilmiş (joker olarak) gelir; istenirse sağ tık / uzun basma ile yüzü açılır
+    flipped = new Set(S.hand.filter(t => Rules.isJoker(t, S.okey)).map(t => t.id));
     rackHistory = [];
     const sorted = S.hand.slice().sort((a, b) => tileKey(a) - tileKey(b)).map(t => t.id);
     slots = arrange([], sorted);
@@ -580,6 +581,8 @@ function syncHand() {
   slots = slots.map(id => (ids.includes(id) ? id : null));
   ids.forEach(id => {
     if (slots.includes(id)) return;
+    const nt = tileById(id);
+    if (nt && Rules.isJoker(nt, S.okey)) flipped.add(id); // çekilen / masadan alınan okey de ters gelir
     placeNew(id);
     if (pendingSlot != null) { moveTile(id, pendingSlot); pendingSlot = null; }
     fresh.add(id);
@@ -1037,10 +1040,6 @@ function ownerColor(abs) {
 // taşlar sayılarına denk gelen kutuya oturur (1-2-3-4-5 serisi 1..5 kutularına). Tahta iki yarıdır:
 // perler önce sol yarıyı, sonra sağ yarıyı doldurur. Satırın başındaki renkli nokta perin sahibini gösterir.
 // İşlenebilecek boş kutuya "+" konur. Çiftler sağdaki ayrı alanda.
-function ownerColor(abs) {
-  const p = S.players[abs];
-  return p.avatar && !p.bot ? AV_C[p.avatar.c] : AVA[abs];
-}
 function meldValue(m) {
   const real = m.tiles.find(x => !Rules.isJoker(x, S.okey));
   return real ? Rules.eff(real, S.okey).v : 1;
@@ -1201,8 +1200,8 @@ function renderMe() {
     hs.title = 'Istakadaki dizilişten bağımsız: elindeki taşlarla kurulabilecek en iyi seri puanı ve çift sayısı. ▲ gitmen gereken yön.';
     hs.innerHTML = `<span class="${lead === 's' ? 'lead' : ''}">Seri <b class="${sOk ? 'ok' : ''}">${hp.score}</b>/${b.per}</span><span class="${lead === 'c' ? 'lead' : ''}">Çift <b class="${cOk ? 'ok' : ''}">${hp.pairs}</b>/${b.cift}</span>`;
   } else {
-    // Çevrilmemiş okey yüzündeki sayıyla sayılır (okeyi ele vermesin)
-    const left = S.hand.reduce((s, t) => s + (Rules.isJoker(t, S.okey) && !flipped.has(t.id) ? t.v : Rules.tilePoints(t, S.okey)), 0);
+    // El sonunda yazılacak gibi: elde kalan her okey 101
+    const left = S.hand.reduce((s, t) => s + Rules.tilePoints(t, S.okey), 0);
     hs.classList.remove('ready');
     hs.innerHTML = `<span>Elde kalan <b>${left}</b></span>`;
   }
