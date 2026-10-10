@@ -100,7 +100,8 @@ function send(room) {
   room.seats.forEach((s, i) => {
     if (!s.socketId || !s.connected) return;
     const v = room.game
-      ? Object.assign(room.game.view(i), { code: room.code, deadline: room.deadline, turnMs: turnMs(room), isHost: s.token === room.hostToken, permanent: !!room.permanent, title: room.title || null })
+      // Süre, saat farkından etkilenmesin diye kalan süre olarak gönderilir; botların sırasında da halka akar
+      ? Object.assign(room.game.view(i), { code: room.code, timeLeft: room.deadline ? Math.max(0, room.deadline - Date.now()) : null, timerId: room.deadline, turnMs: room.turnSpan || turnMs(room), isHost: s.token === room.hostToken, permanent: !!room.permanent, title: room.title || null })
       : lobbyView(room, i);
     io.to(s.socketId).emit('state', v);
   });
@@ -133,8 +134,19 @@ function schedule(room) {
     return;
   }
   if (automated(room, i)) {
-    room.timer = setTimeout(() => botStep(room), room.seats[i].isBot ? Math.round(BOT_MS * (0.7 + Math.random() * (g.phase === 'play' ? 1.1 : 0.5))) : AWAY_MS);
+    // Botun turu (çekme + atma) baştan planlanır; süre halkası tur boyunca tek seferde boşalır
+    const stepMs = phase => room.seats[i].isBot ? Math.round(BOT_MS * (0.7 + Math.random() * (phase === 'play' ? 1.1 : 0.5))) : AWAY_MS;
+    let plan = room.botPlan;
+    if (!plan || plan.turn !== g.turnCount || plan.seat !== i) {
+      const d1 = g.phase === 'draw' ? stepMs('draw') : 0, d2 = stepMs('play');
+      plan = room.botPlan = { turn: g.turnCount, seat: i, end: Date.now() + d1 + d2, span: d1 + d2, d1 };
+    }
+    const wait = g.phase === 'draw' ? plan.d1 : Math.max(150, plan.end - Date.now());
+    room.deadline = plan.end;
+    room.turnSpan = plan.span;
+    room.timer = setTimeout(() => botStep(room), wait);
   } else {
+    room.turnSpan = turnMs(room);
     room.deadline = Date.now() + turnMs(room);
     room.timer = setTimeout(() => {
       const before = g.turnCount;

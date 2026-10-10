@@ -25,7 +25,9 @@ Not: Ücretsiz sunucu 15 dakika kimse bağlanmazsa uyur; ilk girişte açılmas�
 - **Per tahtası (Okey Plus gibi):** Her per ayrı satırda; taşlar sayılarına denk gelen 1–13 kutularına oturur. Tahta iki yarıdır, perler önce sol sonra sağ yarıyı doldurur; çok per açılınca kutular küçülür, hepsi her zaman tek ekranda görünür. Satır başındaki renkli nokta perin sahibini gösterir.
 - **Çıkan taşlar (🧮):** Her taşın 2 kopyasından kaçının göründüğü (atılanlar, perler, gösterge, kendi elin) 4 renk × 13 sayı tablosunda; hiç görünmeyen taşlar rakiplerde olabilir.
 - **Masadan çıkış:** Çık ya da Ana menü ile ayrılınca (ya da başka masaya geçince) koltuğa hemen bot geçer.
-- **Masaüstü:** Kendi geniş masa düzeni (oyuncular masanın etrafında, üst çubukta simgeler); taşlar ekran genişliğinin ~%3,2'si. Telefon yatayda Okey Plus düzeni.
+- **Masaüstü / tablet:** Telefondaki Okey Plus düzeni (üstte süre çubuğu, yanlarda oyuncu şeritleri, sağda düğmeler) 1100 px'te kurulup ekrana orantılı büyütülür; taşlar ekran genişliğinin ~%3,9'u.
+- **Süre:** Sırası gelen herkesin (botlar dahil) avatar halkası ve üstteki süre çubuğu kalan süreyle boşalır, son çeyrekte kırmızıya döner. Süre, sunucu ile cihaz saati farklı olsa da doğru gösterilir.
+- **Kimde sıra:** Sıra sendeyse ıstaka nabız gibi parlar; rakipteyse onun şeridi / üst çubuktaki çipi yanıp söner. Cihazda "animasyonları azalt" açık olsa da bu göstergeler çalışır.
 - Per tahtasında ızgara çizgisi yok; taş biçiminde soluk yuvalar var. Çiftler alanında çift biçiminde yuvalar.
 - Her pencerenin sağ üstünde, kaydırmadan ulaşılan ✕ kapatma düğmesi.
 - **Masaüstü (altın oran):** Istaka ekran genişliğinin ~%61,8'i (1/φ).
