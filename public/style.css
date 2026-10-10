@@ -1055,3 +1055,25 @@ body:not(.short) .turnbar.low i { background: #e2402f; }
 .short .table { --strip: 40px; --rcw: 70px; --infow: max(calc(var(--dw) + 10px), 58px); gap: 4px; }
 .short #pos3 .pinfo b, .short #pos1 .pinfo b { max-width: 38px; }
 .short .modeinfo span { font-size: 9px; }
+
+/* ===== Telefonda yatay zorunlu: dikey tutulunca oyunun üstünde "yan çevir" ekranı ===== */
+.rotatelock { display: none; }
+@media (orientation: portrait) and (pointer: coarse) and (max-width: 600px) {
+  .rotatelock {
+    position: fixed; inset: 0; z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px; padding: 24px; text-align: center; color: #fff;
+    background: radial-gradient(ellipse at 50% 40%, #1f5f92 0%, #0c2f4d 75%);
+  }
+  .rotatelock b { font-size: 22px; }
+  .rotatelock span { font-size: 15px; color: #cfe0ef; }
+  .rotatelock button { margin-top: 8px; padding: 12px 22px; font-size: 17px; }
+  .rl-phone { width: 54px; height: 92px; border: 4px solid #fff; border-radius: 10px; position: relative; animation: rlturn 2.2s ease-in-out infinite; }
+  .rl-phone::after { content: ''; position: absolute; left: 50%; bottom: 5px; width: 8px; height: 8px; margin-left: -4px; border-radius: 50%; background: #fff; }
+  body:has(.rotatelock) { overflow: hidden; }
+}
+@keyframes rlturn { 0%, 25% { transform: rotate(0); } 55%, 85% { transform: rotate(-90deg); } 100% { transform: rotate(0); } }
+@media (prefers-reduced-motion: reduce) { .rl-phone { animation: none; transform: rotate(-90deg); } }
+
+/* ===== Telefon yatay: 15 yuva ıstakanın tamamını kaplar (sağ uçta da taş bırakılabilir) ===== */
+body.short:not(.zoomed) .rackrow { grid-template-columns: repeat(15, minmax(var(--tw), 1fr)); justify-content: stretch; }
+body.short:not(.zoomed) .rackrow .slot { width: auto; display: flex; justify-content: center; }

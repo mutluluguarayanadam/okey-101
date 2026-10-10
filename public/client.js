@@ -128,6 +128,16 @@ $('#btnTrack').onclick = () => S && !S.lobby && openDiscards(S.you);
 $('#btnScores').onclick = () => { scoresOpen = true; renderModal(); };
 $('#btnSettings').onclick = () => openSettings();
 const touch = matchMedia('(pointer: coarse)').matches;
+// Telefonda oyun yatay oynanır: tam ekrana geçip ekranı yatayda kilitle (Android). iPhone kilitlemeye izin
+// vermez; orada dikey tutulunca "yan çevir" ekranı çıkar.
+async function goLandscape() {
+  try {
+    if (!document.fullscreenElement && document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
+    await screen.orientation?.lock?.('landscape');
+  } catch (e) { /* desteklenmiyor: kullanıcı telefonu kendisi çevirir */ }
+}
+$('#btnRotate').onclick = goLandscape;
+$('#rotateLock').addEventListener('pointerup', goLandscape);
 let fsTried = false;
 $('#game').addEventListener('pointerdown', () => {
   if (!touch || fsTried || document.fullscreenElement || !document.documentElement.requestFullscreen) return;
@@ -364,9 +374,18 @@ function fitLayout() {
   // Dar dikey ekran (düzen 'short' değilse): altın oran — ıstaka genişliği ekranın 1/φ'si
   const byW = short ? (vw - 22 - 112 - 14 * gap) / 15 : (vw / PHI - 40 - 14 * gap) / 15;
   const byH = short ? Math.min(((vh * 0.27 - 14) / 2) / 1.38, vw * (ZOOM > 1 ? 0.039 : 0.042)) : (((vh - 110) * (1 - 1 / PHI) - 30) / 2) / 1.38;
-  const tw = Math.max(16, Math.min(short ? 54 : 96, byW, byH));
+  let tw = Math.max(16, Math.min(short ? 54 : 96, byW, byH));
+  let th = tw * 1.38;
+  // Telefon yatay: ıstaka yüksekliği ekranın ~%27'si; taşlar o yükseklikte, genişlikleri ıstakanın tamamını
+  // dolduracak kadar (en basık 1:1,15). Böylece 15 yuva ıstakanın sağ ucuna dek uzanır, boş ahşap kalmaz.
+  if (short && ZOOM === 1) {
+    th = Math.max(22, Math.min(54 * 1.38, (vh * 0.27 - 14) / 2));
+    tw = Math.max(16, Math.min(54, byW, th / 1.15));
+    th = Math.min(th, tw * 1.38);
+  }
   const root = document.documentElement.style;
   root.setProperty('--tw', tw.toFixed(1) + 'px');
+  root.setProperty('--th', th.toFixed(1) + 'px');
   root.setProperty('--gap', gap + 'px');
   root.setProperty('--bar', bar + 'px');
   root.setProperty('--sw', Math.max(14, Math.min(short ? 30 : 38, tw * (short ? 0.62 : 0.5))).toFixed(1) + 'px');
