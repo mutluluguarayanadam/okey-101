@@ -332,9 +332,20 @@ document.addEventListener('pointerdown', e => {
   if (!e.target.closest('#menuPop, #btnMenu')) $('#menuPop').classList.add('hidden');
 });
 
+// Yatay ekran: telefon için kurulan Okey Plus düzeni kullanılır. Geniş ekranlarda (masaüstü, tablet)
+// aynı düzen 1100 piksel genişliğinde tasarlanıp ekrana orantılı olarak büyütülür (CSS zoom);
+// böylece oranlar fotoğraflardaki gibi kalır, hiçbir öğe ekranı kaplamaz.
+let ZOOM = 1;
+const DESIGN_W = 1100;
 function fitLayout() {
-  const vw = window.innerWidth, vh = window.innerHeight;
-  const short = vw > vh && vh < 560;
+  const rvw = window.innerWidth, rvh = window.innerHeight;
+  const land = rvw / rvh >= 1.3;
+  ZOOM = land && rvw > DESIGN_W ? rvw / DESIGN_W : 1;
+  const g = $('#game');
+  if (g) g.style.zoom = ZOOM === 1 ? '' : ZOOM;
+  document.body.classList.toggle('zoomed', ZOOM > 1);
+  const vw = rvw / ZOOM, vh = rvh / ZOOM;
+  const short = land && vh < 720;
   document.body.classList.toggle('short', short);
   placeControls(short);
   const gap = vw < 700 ? 2 : 3;
@@ -345,7 +356,8 @@ function fitLayout() {
   // Masaüstü: altın oran — ıstaka genişliği ekranın 1/φ'si (%61,8)
   const byW = short ? (vw - 22 - 112 - 14 * gap) / 15 : (vw / PHI - 40 - 14 * gap) / 15;
   // Telefon: Okey Plus oranları (ıstaka yüksekliğin ~%27'si). Masaüstü: ıstaka, masa + ıstaka yüksekliğinin en fazla %38,2'si
-  const byH = short ? Math.min(((vh * 0.27 - 14) / 2) / 1.38, vw * 0.042) : (((vh - 110) * (1 - 1 / PHI) - 30) / 2) / 1.38;
+  // Telefonda taş ekran genişliğinin ~%4,2'si (Okey Plus); büyütülmüş geniş ekranda ~%3,4'ü (daha az yer kaplasın)
+  const byH = short ? Math.min(((vh * 0.27 - 14) / 2) / 1.38, vw * (ZOOM > 1 ? 0.034 : 0.042)) : (((vh - 110) * (1 - 1 / PHI) - 30) / 2) / 1.38;
   const tw = Math.max(16, Math.min(short ? 54 : 96, byW, byH));
   const root = document.documentElement.style;
   root.setProperty('--tw', tw.toFixed(1) + 'px');
@@ -358,7 +370,7 @@ function fitLayout() {
   root.setProperty('--dw', (short ? Math.max(24, tw * 1.0) : tw * 0.68).toFixed(1) + 'px');
   root.setProperty('--cw', (short ? Math.max(22, tw * 0.9) : tw).toFixed(1) + 'px');
 }
-window.addEventListener('resize', () => { if (S && !S.lobby) fitLayout(); });
+window.addEventListener('resize', () => { if (S && !S.lobby) { fitLayout(); renderGame(); } });
 window.addEventListener('orientationchange', () => setTimeout(fitLayout, 250));
 
 function render() {
@@ -769,10 +781,10 @@ function fly(from, toEl, proto, opts = {}) {
   const c = (proto || toEl).cloneNode(true);
   c.classList.remove('just', 'fresh', 'sel');
   c.classList.add('flyer');
-  Object.assign(c.style, { left: to.left + 'px', top: to.top + 'px', width: to.width + 'px', height: to.height + 'px' });
+  Object.assign(c.style, { zoom: ZOOM, left: to.left / ZOOM + 'px', top: to.top / ZOOM + 'px', width: to.width / ZOOM + 'px', height: to.height / ZOOM + 'px' });
   document.body.appendChild(c);
   if (!opts.keep) toEl.style.visibility = 'hidden';
-  const dx = from.left + from.width / 2 - (to.left + to.width / 2), dy = from.top + from.height / 2 - (to.top + to.height / 2);
+  const dx = (from.left + from.width / 2 - (to.left + to.width / 2)) / ZOOM, dy = (from.top + from.height / 2 - (to.top + to.height / 2)) / ZOOM;
   const sc = from.width / to.width;
   const a = c.animate([
     { transform: `translate(${dx}px, ${dy}px) scale(${sc})`, opacity: opts.fadeIn ? 0.4 : 1 },
@@ -788,9 +800,9 @@ function flyTo(fromEl, from, to, opts = {}) {
   if (reduceMotion || !visible(from) || !visible(to) || !fromEl) return;
   const c = fromEl.cloneNode(true);
   c.classList.add('flyer');
-  Object.assign(c.style, { left: from.left + 'px', top: from.top + 'px', width: from.width + 'px', height: from.height + 'px' });
+  Object.assign(c.style, { zoom: ZOOM, left: from.left / ZOOM + 'px', top: from.top / ZOOM + 'px', width: from.width / ZOOM + 'px', height: from.height / ZOOM + 'px' });
   document.body.appendChild(c);
-  const dx = to.left + to.width / 2 - (from.left + from.width / 2), dy = to.top + to.height / 2 - (from.top + from.height / 2);
+  const dx = (to.left + to.width / 2 - (from.left + from.width / 2)) / ZOOM, dy = (to.top + to.height / 2 - (from.top + from.height / 2)) / ZOOM;
   const a = c.animate([
     { transform: 'translate(0,0) scale(1)', opacity: 1 },
     { transform: `translate(${dx}px, ${dy}px) scale(.6)`, opacity: 0.2 },
@@ -813,7 +825,7 @@ function runAnimations(before, changed) {
       const id = +el.dataset.id, old = before.rack.get(id);
       if (!old || fresh.has(id) && changed) return;
       const nw = rect(el);
-      const dx = old.left - nw.left, dy = old.top - nw.top;
+      const dx = (old.left - nw.left) / ZOOM, dy = (old.top - nw.top) / ZOOM;
       if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
       el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'translate(0,0)' }],
         { duration: 220, easing: 'cubic-bezier(.2,.8,.25,1)' });
@@ -862,8 +874,8 @@ function runAnimations(before, changed) {
       const back = Object.assign(document.createElement('div'), { className: 'tile back' });
       const from = tookDiscard ? before.corners[relOf(srcAbs)] : before.pile;
       if (from) {
-        back.style.width = from.width + 'px';
-        back.style.height = from.height + 'px';
+        back.style.width = from.width / ZOOM + 'px';
+        back.style.height = from.height / ZOOM + 'px';
         flyTo(back, from, before.avatars[r]);
       }
     }
@@ -937,7 +949,7 @@ function renderPlayer(el, abs) {
   if (p.opened) tags.push(`<span class="badge ${p.openType === 'cift' ? 'pairb' : 'open'}">${p.openType === 'cift' ? 'Çift ' + (p.openPairs || '') : 'Seri ' + (p.openScore || '')}</span>`);
   if (p.penalty) tags.push(`<span class="badge off">+${p.penalty}</span>`);
   el.classList.toggle('opened', !!p.opened);
-  el.innerHTML = avaHtml(abs) +
+  el.innerHTML = avaHtml(abs).replace(/<\/div>$/, `<i class="acount" title="Elindeki taş">${p.count}</i></div>`) +
     `<div class="pinfo"><b>${esc(p.name)}</b><small>${p.count} taş<span class="tot"> · ${p.total} puan</span></small><div class="tags">${tags.join('')}</div></div>`;
 }
 
@@ -989,24 +1001,75 @@ function ownerColor(abs) {
   const p = S.players[abs];
   return p.avatar && !p.bot ? AV_C[p.avatar.c] : AVA[abs];
 }
+// Per tahtası (Okey Plus gibi): her per ayrı bir satır; satırda 1'den 13'e kadar kutucuk var,
+// taşlar sayılarına denk gelen kutuya oturur (1-2-3-4-5 serisi 1..5 kutularına). Tahta iki yarıdır:
+// perler önce sol yarıyı, sonra sağ yarıyı doldurur. Satırın başındaki renkli nokta perin sahibini gösterir.
+// İşlenebilecek boş kutuya "+" konur. Çiftler sağdaki ayrı alanda.
+function ownerColor(abs) {
+  const p = S.players[abs];
+  return p.avatar && !p.bot ? AV_C[p.avatar.c] : AVA[abs];
+}
+function meldValue(m) {
+  const real = m.tiles.find(x => !Rules.isJoker(x, S.okey));
+  return real ? Rules.eff(real, S.okey).v : 1;
+}
+// Satırdaki taşları kutularına yerleştir (sütun 1 = sahip noktası, sütun n+1 = sayı n)
+function layoutRow(el, m) {
+  el.classList.add('mrow');
+  const n = m.tiles.length;
+  let start;
+  if (m.type === 'run') start = m.start;
+  else { const v = meldValue(m); start = v + n - 1 <= 13 ? v : v - n + 1; }
+  let col = start;
+  [...el.children].forEach(k => {
+    if (k.classList.contains('ghostslot')) {
+      let c = k.dataset.choice === 'add-left' ? start - 1 : start + n;
+      if (c > 13) c = start - 1;
+      k.style.gridColumn = String(c + 1);
+    } else {
+      k.style.gridColumn = String(col + 1);
+      col++;
+    }
+  });
+  const mk = document.createElement('i');
+  mk.className = 'omark';
+  mk.style.gridColumn = '1';
+  el.prepend(mk);
+}
 function renderMelds() {
   const bs = $('#seriBoard'), bc = $('#ciftBoard');
-  bs.innerHTML = '';
+  bs.innerHTML = '<div class="half"></div><div class="half"></div>';
   bc.innerHTML = '';
+  const halves = bs.querySelectorAll('.half');
+  // Kutu boyu tahtanın genişliğinden: her yarıda 1 nokta + 13 kutu
+  const W = bs.clientWidth || 600, H = bs.clientHeight || 300;
+  // Kutu: tahtaya sığan en büyük boy, ama ıstaka taşının ~yarısını geçmesin (fotoğraftaki gibi küçük ve çok satır)
+  const tw = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tw')) || 40;
+  const cell = Math.max(11, Math.min(Math.round(tw * 0.5), Math.floor(((W - 14) / 2 - 12) / 13)));
+  const cellH = Math.round(cell * 1.36);
+  const rowH = cellH + 4;
+  bs.style.setProperty('--cell', cell + 'px');
+  bs.style.setProperty('--cellh', cellH + 'px');
+  bs.style.setProperty('--rowh', rowH + 'px');
+  const cap = Math.max(1, Math.floor((H - 8) / rowH));
   const tid = drag ? drag.id : sel;
   let t = tid != null ? tileById(tid) : null;
   // Çevrilmemiş okey seçilince perler parlamaz (okey olduğunu belli etmesin); çevirince okey gibi işlenir
   if (t && Rules.isJoker(t, S.okey) && !flipped.has(t.id)) t = null;
   const canNow = playing() && me().opened;
   const rel = m => (m.owner - S.you + 4) % 4;
+  let row = 0;
   S.melds.slice().sort((a, b) => rel(a) - rel(b) || a.id - b.id).forEach(m => {
     const el = meldEl(m, t, canNow);
     el.classList.add('own');
     el.style.setProperty('--oc', ownerColor(m.owner));
     el.title = (el.title ? el.title + ' · ' : '') + (m.owner === S.you ? 'Senin perin' : S.players[m.owner].name);
-    (m.type === 'pair' ? bc : bs).appendChild(el);
+    if (m.type === 'pair') { bc.appendChild(el); return; }
+    layoutRow(el, m);
+    halves[row < cap ? 0 : 1].appendChild(el);
+    row++;
   });
-  if (!bs.children.length) bs.innerHTML = '<span class="blabel">Açılan seriler burada görünecek</span>';
+  if (!row) halves[0].innerHTML = '<span class="blabel">Açılan seriler burada görünecek</span>';
   if (!bc.children.length) bc.innerHTML = '<span class="blabel">Çiftler</span>';
 }
 
@@ -1162,7 +1225,6 @@ function renderActions() {
   const selT = sel != null ? tileById(sel) : null;
   const selIsler = selT && S.melds.some(x => Rules.canAttach(x, selT, S.okey));
   if (S.mustOpenWith != null) hint = 'Yandan aldığın taşı kullanarak elini açmalısın. Açamazsan ya da açmak istemezsen taşı geri koyabilirsin (101 ceza).';
-  else if (S.takenJoker != null && S.hand.some(x => x.id === S.takenJoker)) hint = 'Aldığın okeyi bu tur bir pere işle ya da yeni seride kullan, yoksa 101 ceza.';
   else if (selIsler && !(playing() && me().opened)) hint = 'Bu taş işlek: masadaki kırmızı çerçeveli pere uyuyor. Atarsan 101 ceza yazılır.';
   else if (playing() && sel != null) hint = me().opened && selIsler ? 'Parlayan pere dokunarak işle (+ işaretli yere eklenir). Okeyi alabileceğin perde okey parlar.' : 'Sağ alttaki alana dokunarak at ya da boş bir yuvaya taşı.';
   else if (playing() && evalRack().tooLong.length) hint = 'Seri en fazla 5 taşla açılır: uzun seriyi araya boşluk koyarak ikiye böl (örn. 1-2-3-4 ve 5-6-7).';
@@ -1179,7 +1241,6 @@ function discard(id, force) {
   if (!force && prefs.confirmRisky && t && S.hand.length > 1 && !Rules.isJoker(t, S.okey)) {
     let warn = null;
     if (S.melds.some(m => Rules.canAttach(m, t, S.okey))) warn = 'Bu taş masadaki bir pere işlenebiliyor (işlek). Atarsan <b>101 ceza</b> yazılır.';
-    else if (S.takenJoker != null && S.hand.some(x => x.id === S.takenJoker)) warn = 'Yerden aldığın okeyi bu tur kullanmadın. Şimdi atarsan <b>101 ceza</b> yazılır.';
     if (warn) {
       renderGame();
       return confirmBox('Emin misin?', warn, 'Yine de at', () => discard(id, true));
@@ -1214,7 +1275,7 @@ function openSettings() {
     ['sound', 'Ses', 'Sıra sana gelince, süre azalınca ve yığın biterken kısa sesler'],
     ['vibrate', 'Titreşim', 'Telefonda sıra sana gelince titrer'],
     ['autoSort', 'Yeni elde otomatik diz', 'Taşlar dağıtılınca en iyi seri dizilimi kurulur'],
-    ['confirmRisky', 'Riskli atışta sor', 'İşlek taş ya da yerden alıp kullanmadığın okey atılırken onay ister'],
+    ['confirmRisky', 'Riskli atışta sor', 'İşlek taş atılırken onay ister (101 ceza)'],
     ['shapes', 'Renk körlüğü desteği', 'Her rengin altındaki işaret farklı şekilde olur (● ■ ◆ ▲)'],
   ];
   openPanel(`<h2>Ayarlar</h2><div class="prefs">${items.map(([k, t, d]) =>
@@ -1232,7 +1293,7 @@ function openHelp() {
     <h3>Sıra sende</h3><p>Önce bir taş çek: ortadaki <b>yığından</b> ya da soldaki oyuncunun attığı taşı <b>sol alttan</b> al (dokun ya da ıstakada bir yuvaya sürükle). Sonra bir taş at: taşı <b>sağ alttaki</b> alana sürükle ya da taşa iki kez dokun.</p>
     <h3>Per ve açma</h3><p>Seri: aynı renk ardışık en az 3 taş (12-13-1 olmaz). Grup: aynı sayı farklı renk 3-4 taş. Istakada perlerin arasına bir boşluk bırak, puanı üstünde görünür. Toplam <b>101</b> ya da <b>5 çift</b> olunca "Elini aç". Seri en fazla <b>5 taşla</b> açılır (1234567 → 1234 + 567). <b>Okey</b>, göstergenin bir üstüdür (aynı renk) ve her taşın yerine geçer; elinde kendi yüzüyle durur, tanımak sana kalmış. Sahte okey (✿) okeyin kendisi olarak sayılır. Masada okey ters çevrilmiş (numarasız) görünür.</p>
     <h3>Taşı ters çevirme</h3><p>Istakadaki bir taşa <b>sağ tıkla</b> (telefonda <b>uzun bas</b>): taş ters döner, bir daha yapınca düzelir. Okeyi böyle işaretleyebilirsin.</p>
-    <h3>İşleme</h3><p>Elini açtıktan sonra taş seç; uyduğu perler parlar. <b>+</b> başa/sona ekler, <b>Al</b> perdeki okeyi alır (okeyi o tur kullanmalısın). Okey seriden, 4'lü gruptan ya da çiftten alınabilir; alana ceza yoktur. Bir pere <b>bir turda en fazla 2 taş</b> işlenir; toplamda sınır yoktur. Kırmızı yıldızlı taşlar işlektir.</p>
+    <h3>İşleme</h3><p>Elini açtıktan sonra taş seç; uyduğu perler parlar. <b>+</b> başa/sona ekler, <b>Al</b> perdeki okeyi alır; aldığın okeyi istediğin zaman kullanırsın, ama el bittiğinde hâlâ elindeyse 101 ceza yazılır. Okey seriden, 4'lü gruptan ya da çiftten alınabilir; alana ceza yoktur. Bir perin <b>sağına bir turda en fazla 2, soluna en fazla 2</b> taş işlenir; toplamda sınır yoktur. Kırmızı yıldızlı taşlar işlektir.</p>
     <h3>Cezalar</h3><p>Okey atmak, işlek taş atmak, yandan alıp açamamak: 101. Elini açmadan biten elde 202. Okeyle, çiftten ya da elden bitirmek puanları ikiye katlar.</p>
     <h3>Kısayollar (bilgisayar)</h3><p><kbd>Boşluk</kbd> yığından çek · <kbd>A</kbd> soldakini al · <kbd>S</kbd> seri diz · <kbd>C</kbd> çift diz · <kbd>Delete</kbd> seçili taşı at · <kbd>Enter</kbd> elini aç · <kbd>Esc</kbd> seçimi kaldır</p>
   </div><div class="row" style="margin-top:12px"><button class="primary grow" id="hpOk">Anladım</button></div>`, () => { $('#hpOk').onclick = closePanel; });
@@ -1395,8 +1456,9 @@ window.addEventListener('pointermove', e => {
       const r0 = ref.getBoundingClientRect();
       drag.ghost = drag.draw === 'pile' ? Object.assign(document.createElement('div'), { className: 'tile back' }) : drag.src.cloneNode(true);
       drag.ghost.classList.add('ghost');
-      drag.ghost.style.width = r0.width + 'px';
-      drag.ghost.style.height = r0.height + 'px';
+      drag.ghost.style.zoom = ZOOM;
+      drag.ghost.style.width = r0.width / ZOOM + 'px';
+      drag.ghost.style.height = r0.height / ZOOM + 'px';
       document.body.appendChild(drag.ghost);
       document.body.classList.add('drawing');
     } else {
@@ -1405,8 +1467,9 @@ window.addEventListener('pointermove', e => {
     drag.ghost = drag.src.cloneNode(true);
     drag.ghost.classList.remove('sel', 'fresh');
     drag.ghost.classList.add('ghost');
-    drag.ghost.style.width = r.width + 'px';
-    drag.ghost.style.height = r.height + 'px';
+    drag.ghost.style.zoom = ZOOM;
+    drag.ghost.style.width = r.width / ZOOM + 'px';
+    drag.ghost.style.height = r.height / ZOOM + 'px';
     document.body.appendChild(drag.ghost);
     drag.src.classList.add('dragging');
     sel = null;
@@ -1416,7 +1479,7 @@ window.addEventListener('pointermove', e => {
   }
   e.preventDefault();
   const g = drag.ghost;
-  g.style.transform = `translate(${e.clientX - g.offsetWidth / 2}px, ${e.clientY - g.offsetHeight * 0.7}px) scale(1.12)`;
+  g.style.transform = `translate(${e.clientX / ZOOM - g.offsetWidth / 2}px, ${e.clientY / ZOOM - g.offsetHeight * 0.7}px) scale(1.12)`;
   const tgt = dropTargetAt(e.clientX, e.clientY);
   if (tgt !== drag.over) {
     drag.over?.classList.remove('over');

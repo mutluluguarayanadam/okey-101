@@ -872,3 +872,37 @@ body {
 .short #pos3 .pinfo b, .short #pos1 .pinfo b { font-size: 11px; max-height: 120px; }
 .short #pos3 .tags .badge, .short #pos1 .tags .badge { font-size: 9px; padding: 2px 1px; }
 .short .modeinfo span { font-size: 9.5px; white-space: nowrap; overflow: hidden; text-overflow: clip; }
+
+/* ===================== Per tahtası: 1-13 kutucuklu satırlar (Okey Plus) ===================== */
+#seriBoard { display: flex; gap: 14px; flex-wrap: nowrap; overflow: hidden; }
+#seriBoard .half {
+  position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin;
+  /* boş kutucuklar: her satırda 13 dikdörtgen */
+  background-image:
+    linear-gradient(90deg, rgba(255,255,255,.09) 1px, transparent 1px),
+    linear-gradient(rgba(255,255,255,.09) 1px, transparent 1px);
+  background-size: var(--cell) var(--rowh);
+  background-position: 12px 0;
+  background-repeat: repeat;
+}
+#seriBoard .half + .half::before { content: ''; position: absolute; left: -8px; top: 0; bottom: 0; width: 2px; background: rgba(255,255,255,.22); }
+#seriBoard .meld.mrow {
+  display: grid; grid-template-columns: 12px repeat(13, var(--cell)); grid-auto-rows: var(--cellh);
+  gap: 0; padding: 0; margin: 0; flex: none; height: var(--cellh); background: transparent; box-shadow: none; border-radius: 4px;
+}
+#seriBoard .mrow .tile.sm { --w: calc(var(--cell) - 2px); --h: calc(var(--cellh) - 2px); margin: 1px; }
+#seriBoard .mrow .omark { width: 8px; height: 8px; margin: auto 2px; border-radius: 50%; background: var(--oc); box-shadow: 0 0 0 1px rgba(0,0,0,.4); grid-row: 1; }
+#seriBoard .meld.mrow.can { background: rgba(245,192,68,.16); box-shadow: 0 0 0 1px var(--gold), 0 0 12px rgba(245,192,68,.55); }
+#seriBoard .meld.mrow.warn { box-shadow: 0 0 0 1px #ff6b5a; }
+#seriBoard .blabel { position: absolute; inset: 0; }
+#seriBoard .mrow > * { grid-row: 1; }
+/* Rakiplerin elindeki taş sayısı */
+.ava .acount { position: absolute; right: -6px; bottom: -4px; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 8px; background: #0c1d33; color: #fff; font-style: normal; font-size: 9px; font-weight: 800; display: grid; place-items: center; box-shadow: 0 0 0 1px rgba(255,255,255,.35); line-height: 1; }
+
+/* Büyütülmüş geniş ekranda ıstaka taşlara göre boyutlanır ve dizme düğmeleriyle ortalanır */
+body.zoomed.short .rackline { justify-content: center; }
+body.zoomed.short .rack { flex: 0 1 auto; }
+/* Dikey şeritlerde taş sayısı rozeti şeridin içinde kalsın */
+.short #pos1 .ava .acount, .short #pos3 .ava .acount { right: -3px; bottom: -6px; }
+/* Sağ sütundaki uzun düğme etiketleri ("SERİ İNDİR (2)") alt satıra geçebilsin */
+.short .table > .actions button { white-space: normal; line-height: 1.1; padding: 5px 3px; }

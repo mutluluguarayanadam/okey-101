@@ -254,7 +254,8 @@ const X = {
   lookW: +(process.env.X_LOOKW ?? 3),
   lookC: +(process.env.X_LOOKC ?? 3),
   early: +(process.env.X_EARLY ?? 0),      // erken oyunda (yığın >= bu sayı) kimse açmamışken açmayı beklet (0 = kapalı)
-  hold1: +(process.env.X_HOLD1 ?? 0),      // açtığı turda sadece açılışı indir, kalan perleri sonraki turda
+  hold1: +(process.env.X_HOLD1 ?? 0),      // açtığı turda sadece açılışı indir, kalan perleri sonraki turda (ölçümde zarar, kapalı)
+  keepJ: +(process.env.X_KEEPJ ?? 1),      // okeyi sakla: okeysiz açabiliyorsan öyle aç, okeyi risk artınca ya da bitişte kullan
 };
 
 // Bu tur eli bitirebilir miyim? (en çok taşlı dizilim + masaya işlenebilecek kalanlar, en az 1 taş atmak için kalır)
@@ -315,6 +316,16 @@ function tryOpen(g, seat) {
     if (delayOpen(g, seat)) return false; // uzman: açmayı beklet
     let toOpen = melds;
     if (X.minOpen && !riskHigh(g, seat) && !finishable(g, seat).can) toOpen = minimalOpen(melds, bar.per, ok);
+    // Uzman: okey olmadan da baraj geçiliyorsa okeyi açışta harcama (sona sakla: okeyle bitiş puanları x2)
+    if (X.keepJ && !riskHigh(g, seat) && toOpen.some(m => m.some(t => R.isJoker(t, ok)))) {
+      const noJ = me.hand.filter(t => !R.isJoker(t, ok));
+      const s2 = solve(noJ, ok);
+      const used2 = s2.melds.reduce((a, m) => a + m.length, 0);
+      if (s2.score >= bar.per && used2 < me.hand.length) {
+        const alt = X.minOpen ? minimalOpen(s2.melds, bar.per, ok) : s2.melds;
+        if (g.open(seat, alt.map(m => m.map(t => t.id))).ok) return true;
+      }
+    }
     if (g.open(seat, toOpen.map(m => m.map(t => t.id))).ok) return true;
     if (toOpen !== melds && g.open(seat, melds.map(m => m.map(t => t.id))).ok) return true;
   }
@@ -437,21 +448,15 @@ function layAndAttach(g, seat, reserve) {
       if (changed) continue;
     }
     if (me.hand.length > 1) {
-      const mustUse = g.takenJoker != null && me.hand.some(t => t.id === g.takenJoker);
-      const list = usable().filter(t => !isJ(t) || mustUse || me.hand.length <= 3);
+      // Okeyi masaya ancak eli bitirmeye yakınken işle; öncesinde elde per kurmak için sakla
+      const list = usable().filter(t => !isJ(t) || me.hand.length <= 3);
       outer: for (const t of list) {
         for (const m of g.melds) {
           if (me.hand.length <= 1) break outer;
           const opts = R.attachOptions(m, t, ok);
           if (!opts.length) continue;
-          let info = opts.find(o => o.kind === 'swap');
-          if (info) {
-            // Okeyi ancak sonra kullanabileceksek al
-            const jokerTile = m.tiles[info.index];
-            const later = g.melds.some(o => o !== m && o.type !== 'pair' && R.attachInfo(o, jokerTile, ok));
-            if (!later) info = null;
-          }
-          info = info || opts.find(o => o.kind === 'add');
+          // Yerdeki okeyi her fırsatta al: eldeki taş sayısı değişmez, sabit bir taş her yere uyan okeye döner
+          const info = opts.find(o => o.kind === 'swap') || opts.find(o => o.kind === 'add');
           if (!info) continue;
           if (g.addToMeld(seat, t.id, m.id, info).ok) { changed = true; break outer; }
         }
@@ -477,9 +482,10 @@ function play(g, seat) {
 
   if (me.opened) {
     // Okeyle bitirme fırsatı: bir okeyi sona sakla, kalan her şeyi yerleştirebiliyorsak okeyi atarak bitir (puanlar x2)
-    const jok = me.hand.find(t => R.isJoker(t, ok) && t.id !== g.takenJoker);
+    const jok = me.hand.find(t => R.isJoker(t, ok));
     if (jok) layAndAttach(g, seat, jok);
-    if (!(jok && me.hand.length === 1 && me.hand[0] === jok)) layAndAttach(g, seat, null);
+    const useJ = X.keepJ !== 1 || riskHigh(g, seat) || me.hand.length <= 4 || finishable(g, seat).can; // keepJ=2: sadece açarken sakla
+    if (!(jok && me.hand.length === 1 && me.hand[0] === jok) && (!jok || useJ)) layAndAttach(g, seat, null);
   }
 
   const t = chooseDiscard(g, seat);

@@ -59,7 +59,7 @@ class Game {
     this.phase = 'play'; // başlayan oyuncu 22 taşla başlar, çekmeden atar
     this.mustOpenWith = null;
     this.undoUsed = false;
-    this.takenJoker = null;   // bu tur masadan alınan okey (aynı tur kullanılmalı)
+    this.takenJoker = null;   // bu tur masadan alınan okey (bilgi amaçlı; kullanma zorunluluğu yok, el sonunda elde kalırsa 101)
     this.attachCount = {};    // bu tur her perin sağına/soluna kaç taş işlendi (her yana en fazla 2)
     this.result = null;
     this.handIndex = this.handNo + 1;
@@ -331,10 +331,6 @@ class Game {
     const finished = me.hand.length === 0;
     this.addLog(`${this.name(seat)} ${R.tileName(t)} attı`);
     if (!finished) {
-      if (this.takenJoker != null && me.hand.some(x => x.id === this.takenJoker)) {
-        me.penalty += 101;
-        this.addLog(`${this.name(seat)} yerden aldığı okeyi kullanmadı: 101 ceza`);
-      }
       if (joker) {
         me.penalty += 101;
         this.addLog(`${this.name(seat)} okey attı: 101 ceza`);
