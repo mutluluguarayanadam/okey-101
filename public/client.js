@@ -1071,21 +1071,15 @@ function renderMelds() {
   const bs = $('#seriBoard'), bc = $('#ciftBoard');
   const W = bs.clientWidth, H = bs.clientHeight;
   if (!W || !H) { requestAnimationFrame(() => S && !S.lobby && bs.clientWidth && renderMelds()); }
-  // Kutu boyu: (1) yarıya 1 nokta + 13 kutu sığsın, (2) ıstaka taşının ~3/4'ünü geçmesin,
+  // Kutu boyu: (1) iki yarıya da 1 nokta + 13 kutu sığsın, (2) ıstaka taşının ~3/4'ünü geçmesin,
   // (3) bütün seri perleri sığsın — çok per açılınca kutular küçülür, kaydırma çıkmaz.
-  // Tahta tek sütun ya da iki yarı olarak kurulur; hangisinde taşlar daha büyük oluyorsa o seçilir
-  // (telefonda az per varken tek sütun, taşlar iki kat büyük görünür).
+  // Okey Plus gibi tahta hep iki yarıdır: perler önce sol, sonra sağ yarıyı doldurur.
   const tw = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tw')) || 40;
   const nRuns = S.melds.filter(m => m.type !== 'pair').length;
-  const cellFor = nh => {
-    const perHalf = Math.max(1, Math.ceil(nRuns / nh));
-    const byRows = Math.floor(((H - 8) / perHalf - 4) / 1.36);
-    return Math.max(8, Math.min(Math.round(tw * 0.75), Math.floor(((W - 14 * (nh - 1)) / nh - 12) / 13), byRows));
-  };
-  const nHalves = cellFor(1) >= cellFor(2) ? 1 : 2;
-  const cell = cellFor(nHalves);
-  bs.innerHTML = '<div class="half"></div>'.repeat(nHalves);
-  bs.classList.toggle('one', nHalves === 1);
+  const perHalf = Math.max(1, Math.ceil(nRuns / 2));
+  const byRows = Math.floor(((H - 8) / perHalf - 4) / 1.36);
+  const cell = Math.max(8, Math.min(Math.round(tw * 0.75), Math.floor(((W - 14) / 2 - 12) / 13), byRows));
+  bs.innerHTML = '<div class="half"></div><div class="half"></div>';
   const halves = bs.querySelectorAll('.half');
   const cellH = Math.round(cell * 1.36);
   const rowH = cellH + 4;
@@ -1132,7 +1126,7 @@ function renderMelds() {
   bc.style.backgroundPosition = '9px 5px';
   bc.style.backgroundRepeat = 'repeat-y';
   bc.innerHTML = '';
-  const cap = nHalves === 1 ? Infinity : Math.max(1, Math.floor((H - 8) / rowH));
+  const cap = Math.max(1, Math.floor((H - 8) / rowH));
   const tid = drag ? drag.id : sel;
   let t = tid != null ? tileById(tid) : null;
   // Çevrilmemiş okey seçilince perler parlamaz (okey olduğunu belli etmesin); çevirince okey gibi işlenir

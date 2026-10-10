@@ -1035,3 +1035,9 @@ body:not(.short) .turnbar.low i { background: #e2402f; }
 .bubble.at-t::after { bottom: -5px; left: var(--ax, 50%); margin-left: -6px; }
 .bubble.at-r::after { left: -5px; top: var(--ay, 50%); margin-top: -6px; }
 .bubble.at-l::after { right: -5px; top: var(--ay, 50%); margin-top: -6px; }
+
+/* Sohbetteki hazır mesajlar: lobideki "Hemen oyna" düğmesinin .quick boşlukları burada olmasın; hepsi görünsün (alt satıra geçer) */
+.chatpanel #quick { margin: 0; padding: 0; font-size: inherit; flex-wrap: wrap; overflow: visible; gap: 6px; }
+.chatpanel #quick button { padding: 6px 10px; font-size: 13px; }
+.short .chatpanel #quick button { padding: 4px 8px; font-size: 12px; }
+.chatpanel { overflow-y: auto; }
