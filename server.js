@@ -178,6 +178,37 @@ function sit(room, i, socket, name, token, avatar) {
 
 const roomOf = socket => rooms.get(socket.data.code);
 
+// Oyuncunun oturduğu masadaki koltuğu bırakır: isteyerek çıkışta ve başka bir masaya geçerken.
+// Oyun sürüyorsa koltuğa hemen bot geçer; oyun başlamadıysa koltuk boşalır. Masada insan kalmazsa masa silinir.
+function releaseSeat(socket) {
+  const room = roomOf(socket);
+  const i = socket.data.seat;
+  socket.data.code = null;
+  socket.data.seat = null;
+  if (!room) return;
+  const s = room.seats[i];
+  if (!s || s.socketId !== socket.id) return;
+  const wasHost = s.token === room.hostToken;
+  if (!room.game) {
+    Object.assign(s, emptySeat());
+  } else {
+    room.game.addLog(`${s.name} masadan ayrıldı, yerine bot oynuyor`);
+    Object.assign(s, { token: null, isBot: true, connected: true, socketId: null, awaySince: null });
+  }
+  if (wasHost) {
+    const next = room.seats.find(x => x.token && x.connected);
+    if (next) room.hostToken = next.token;
+  }
+  if (!room.seats.some(x => x.token)) {
+    clearTimeout(room.timer);
+    rooms.delete(room.code);
+    broadcastRooms();
+    return;
+  }
+  room.timerKey = null; // sıra ondaysa bot hemen devralsın
+  update(room);
+}
+
 // Beklenmedik bir hata sunucuyu (ve bütün odaları) çökertmesin
 process.on('uncaughtException', e => console.error('Yakalanmamış hata:', e));
 process.on('unhandledRejection', e => console.error('Yakalanmamış söz:', e));
@@ -194,6 +225,7 @@ io.on('connection', socket => {
   socket.on('create', (a = {}) => {
     const name = clean(a.name), token = clean(a.token, 40);
     if (!name || !token) return socket.emit('err', 'Önce adını yaz');
+    if (socket.data.code) releaseSeat(socket); // önceki masadan çık
     const room = { code: newCode(), hostToken: token, seats: [0, 1, 2, 3].map(emptySeat), game: null, opts: cleanOpts(a), timer: null, timerKey: null, deadline: null, lastHuman: Date.now(), lastChat: {} };
     rooms.set(room.code, room);
     sit(room, 0, socket, name, token, cleanAvatar(a.avatar));
@@ -204,6 +236,7 @@ io.on('connection', socket => {
     const room = rooms.get(clean(a.code, 8).toUpperCase());
     const token = clean(a.token, 40);
     if (!room) return socket.emit(a.auto ? 'leftRoom' : 'err', a.auto ? 'gone' : 'Oda bulunamadı');
+    if (socket.data.code && socket.data.code !== room.code) releaseSeat(socket); // başka masaya geçiş
     let i = room.seats.findIndex(s => s.token && s.token === token);
     if (i < 0) {
       if (a.auto) return socket.emit('leftRoom');
@@ -328,6 +361,14 @@ io.on('connection', socket => {
     if (!room || !room.game || typeof cb !== 'function') return;
     const flipped = Array.isArray(a && a.flipped) ? a.flipped.map(Number).filter(Number.isInteger).slice(0, 30) : [];
     cb(Bot.suggest(room.game, socket.data.seat, flipped));
+  });
+
+  // İsteyerek masadan çıkış (Çık / Ana menü)
+  socket.on('leave', () => {
+    releaseSeat(socket);
+    socket.join('lobby');
+    socket.emit('leftRoom');
+    socket.emit('rooms', listRooms());
   });
 
   socket.on('disconnect', () => {

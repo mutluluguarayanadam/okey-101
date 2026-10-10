@@ -124,6 +124,7 @@ $('#btnShare').onclick = async () => {
   if (navigator.share) { try { await navigator.share({ title: '101 Okey', text, url }); } catch (e) { /* vazgeçildi */ } }
   else window.open('https://wa.me/?text=' + encodeURIComponent(text + ' ' + url), '_blank');
 };
+$('#btnTrack').onclick = () => S && !S.lobby && openDiscards(S.you);
 $('#btnScores').onclick = () => { scoresOpen = true; renderModal(); };
 $('#btnSettings').onclick = () => openSettings();
 const touch = matchMedia('(pointer: coarse)').matches;
@@ -167,6 +168,7 @@ socket.on('joined', ({ code }) => {
 });
 function goLobby(msg) {
   const wasIn = !!S;
+  if (wasIn) socket.emit('leave');
   localStorage.removeItem('okey_room');
   S = null;
   handKey = null;
@@ -1042,10 +1044,15 @@ function renderMelds() {
   bc.innerHTML = '';
   const halves = bs.querySelectorAll('.half');
   // Kutu boyu tahtanın genişliğinden: her yarıda 1 nokta + 13 kutu
-  const W = bs.clientWidth || 600, H = bs.clientHeight || 300;
-  // Kutu: tahtaya sığan en büyük boy, ama ıstaka taşının ~yarısını geçmesin (fotoğraftaki gibi küçük ve çok satır)
+  const W = bs.clientWidth, H = bs.clientHeight;
+  if (!W || !H) { requestAnimationFrame(() => S && !S.lobby && bs.clientWidth && renderMelds()); }
+  // Kutu boyu: (1) iki yarıya da 1 nokta + 13 kutu sığsın, (2) ıstaka taşının yarısını geçmesin,
+  // (3) bütün seri perleri iki yarıya sığsın — çok per açılınca kutular küçülür, kaydırma çıkmaz.
   const tw = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tw')) || 40;
-  const cell = Math.max(11, Math.min(Math.round(tw * 0.5), Math.floor(((W - 14) / 2 - 12) / 13)));
+  const nRuns = S.melds.filter(m => m.type !== 'pair').length;
+  const perHalf = Math.max(1, Math.ceil(nRuns / 2));
+  const byRows = Math.floor(((H - 8) / perHalf - 4) / 1.36);
+  const cell = Math.max(8, Math.min(Math.round(tw * 0.5), Math.floor(((W - 14) / 2 - 12) / 13), byRows));
   const cellH = Math.round(cell * 1.36);
   const rowH = cellH + 4;
   bs.style.setProperty('--cell', cell + 'px');
@@ -1559,9 +1566,30 @@ setInterval(() => {
 let discardsOpen = null; // açık olan atılanlar penceresi (oyuncu sırası)
 function openDiscards(abs) { discardsOpen = abs; renderModal(); }
 
+// Çıkan taşlar: her taşın 2 kopyasından kaçı görünür (atılanlar + masadaki perler + gösterge + kendi elin)
+function trackerHtml() {
+  const seen = {};
+  const add = t => { if (!t || t.fake) return; const k = t.c + '-' + t.v; seen[k] = (seen[k] || 0) + 1; };
+  S.players.forEach(p => p.discards.forEach(add));
+  S.melds.forEach(m => m.tiles.forEach(add));
+  add(S.indicator);
+  S.hand.forEach(add);
+  const names = ['Kırmızı', 'Sarı', 'Mavi', 'Siyah'];
+  let h = '<section class="tracker"><header>Çıkan taşlar <small>(masada + elinde görünen; her taştan 2 tane var)</small></header><div class="tgrid">';
+  for (let c = 0; c < 4; c++) {
+    h += `<span class="tlabel" style="color:${COLORS[c]}">${names[c]}</span>`;
+    for (let v = 1; v <= 13; v++) {
+      const n = seen[c + '-' + v] || 0;
+      h += `<span class="tcell n${Math.min(n, 2)}" style="color:${COLORS[c]}" title="${names[c]} ${v}: ${n}/2 görünüyor">${v}</span>`;
+    }
+  }
+  h += '</div><p class="tlegend"><span class="tcell n0">7</span> hiç görünmedi (rakipte olabilir) <span class="tcell n1">7</span> biri görünüyor <span class="tcell n2">7</span> ikisi de görünüyor</p></section>';
+  return h;
+}
+
 function renderDiscards() {
   const order = [0, 1, 2, 3].map(r => (S.you + r) % 4);
-  let html = '<h2>Atılan taşlar</h2><p class="muted dnote">Soldan sağa atılış sırası; çerçeveli olan en son atılan.</p><div class="dgrid">';
+  let html = '<h2>Atılan ve çıkan taşlar</h2>' + trackerHtml() + '<p class="muted dnote">Atılanlar, soldan sağa atılış sırası; çerçeveli olan en son atılan.</p><div class="dgrid">';
   html += order.map(i => {
     const p = S.players[i];
     const title = i === S.you ? 'Sen' : esc(p.name) + (partner(i) ? ' <span class="badge mate">Eşin</span>' : '');
@@ -1700,7 +1728,7 @@ function renderModal() {
   if (S.over && S.permanent) html += '<p class="muted grow">Yeni oyun birkaç saniye içinde kendiliğinden başlayacak.</p>';
   else if (S.over) html += '<button class="primary grow" id="btnNew">Yeni oyun</button>';
   else if (ended) html += '<p class="muted grow">Sonraki el birazdan başlıyor…</p>';
-  if (S.over) html += '<button class="grow" id="btnMenu">Ana menü</button>';
+  if (S.over) html += '<button class="grow" id="btnMainMenu">Ana menü</button>';
   if (!ended) html += '<button class="grow" id="btnClose">Kapat</button>';
   html += '</div>';
   $('#modalBody').innerHTML = html;
@@ -1723,7 +1751,7 @@ function renderModal() {
   }
   const nb = $('#btnNew');
   if (nb) nb.onclick = () => socket.emit('newGame');
-  const mb = $('#btnMenu');
+  const mb = $('#btnMainMenu');
   if (mb) mb.onclick = () => { socket.emit('leave'); goLobby(); };
   const cb = $('#btnClose');
   if (cb) cb.onclick = () => { scoresOpen = false; renderModal(); };
