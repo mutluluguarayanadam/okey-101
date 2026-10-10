@@ -1041,3 +1041,17 @@ body:not(.short) .turnbar.low i { background: #e2402f; }
 .chatpanel #quick button { padding: 6px 10px; font-size: 13px; }
 .short .chatpanel #quick button { padding: 4px 8px; font-size: 12px; }
 .chatpanel { overflow-y: auto; }
+
+/* ===== Seri perleri: sıkışık dizilim (satır satır, soldan sağa), taşlar tahtaya sığan en büyük boyda ===== */
+#seriBoard, .short #seriBoard {
+  display: flex; flex-direction: row; flex-wrap: wrap; align-content: flex-start; align-items: center;
+  gap: var(--gy, 4px) var(--gx, 12px); overflow: hidden; height: 100%; background: none;
+}
+#seriBoard .meld, .short #seriBoard .meld {
+  display: flex; flex-wrap: nowrap; align-items: center; flex: none; gap: 0; height: var(--cellh);
+  padding: 0; margin: 0; border-radius: 5px; background: transparent; box-shadow: none;
+}
+#seriBoard .meld .tile.sm { --w: calc(var(--cell) - 2px); --h: calc(var(--cellh) - 2px); margin: 1px; }
+#seriBoard .meld .omark { flex: none; width: 8px; height: 8px; margin: 0 2px; border-radius: 50%; background: var(--oc); box-shadow: 0 0 0 1px rgba(0,0,0,.4); }
+#seriBoard .meld.can { background: rgba(245,192,68,.16); box-shadow: 0 0 0 1px var(--gold), 0 0 12px rgba(245,192,68,.55); }
+#seriBoard .meld.warn { box-shadow: 0 0 0 1px #ff6b5a; }
