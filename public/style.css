@@ -1042,16 +1042,16 @@ body:not(.short) .turnbar.low i { background: #e2402f; }
 .short .chatpanel #quick button { padding: 4px 8px; font-size: 12px; }
 .chatpanel { overflow-y: auto; }
 
-/* ===== Seri perleri: sıkışık dizilim (satır satır, soldan sağa), taşlar tahtaya sığan en büyük boyda ===== */
-#seriBoard, .short #seriBoard {
-  display: flex; flex-direction: row; flex-wrap: wrap; align-content: flex-start; align-items: center;
-  gap: var(--gy, 4px) var(--gx, 12px); overflow: hidden; height: 100%; background: none;
-}
-#seriBoard .meld, .short #seriBoard .meld {
-  display: flex; flex-wrap: nowrap; align-items: center; flex: none; gap: 0; height: var(--cellh);
-  padding: 0; margin: 0; border-radius: 5px; background: transparent; box-shadow: none;
-}
-#seriBoard .meld .tile.sm { --w: calc(var(--cell) - 2px); --h: calc(var(--cellh) - 2px); margin: 1px; }
-#seriBoard .meld .omark { flex: none; width: 8px; height: 8px; margin: 0 2px; border-radius: 50%; background: var(--oc); box-shadow: 0 0 0 1px rgba(0,0,0,.4); }
-#seriBoard .meld.can { background: rgba(245,192,68,.16); box-shadow: 0 0 0 1px var(--gold), 0 0 12px rgba(245,192,68,.55); }
-#seriBoard .meld.warn { box-shadow: 0 0 0 1px #ff6b5a; }
+/* ===== Per tahtası (Okey Plus): ortadan iki eşit yarı, her yarıda 1-13 kutulu satırlar ===== */
+#seriBoard, .short #seriBoard { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: stretch; gap: 14px; height: 100%; overflow: hidden; }
+#seriBoard .half { flex: 1 1 0; min-width: 0; gap: 4px; overflow: hidden; }
+#seriBoard .half + .half::before { left: -8px; width: 2px; background: rgba(255,255,255,.28); }
+#seriBoard .meld.mrow { grid-template-columns: 12px repeat(13, var(--cell)); }
+/* Tahtadaki taşlar: nokta yok (renk zaten belli), sayı taşın içine sığan en büyük boyda, hafif dar yazı */
+.melds .tile.sm:not(.joker):not(.fake):not(.ghostslot), #ciftBoard .tile.sm:not(.joker):not(.fake) { justify-content: center; padding-top: 0; }
+.melds .tile.sm:not(.fake) > i, #ciftBoard .tile.sm:not(.fake) > i { display: none; }
+.melds .tile.sm > span, #ciftBoard .tile.sm > span { font-size: calc(var(--w) * .82); font-weight: 800; letter-spacing: -.06em; transform: scaleX(.8); }
+/* Telefon yatay: yan şeritler, bilgi ve düğme sütunları biraz daraltıldı; per tahtasına daha çok yer kalır (Okey Plus'taki gibi ekranın ~yarısı) */
+.short .table { --strip: 40px; --rcw: 70px; --infow: max(calc(var(--dw) + 10px), 58px); gap: 4px; }
+.short #pos3 .pinfo b, .short #pos1 .pinfo b { max-width: 38px; }
+.short .modeinfo span { font-size: 9px; }
