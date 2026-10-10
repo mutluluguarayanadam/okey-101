@@ -2,7 +2,8 @@ const socket = io();
 const $ = s => document.querySelector(s);
 const COLORS = ['var(--red)', 'var(--yellow)', 'var(--blue)', 'var(--black)'];
 const AVA = ['#c0392b', '#2e86c1', '#c47f0e', '#7d3c98'];
-const COLS = 15, SLOTS = 30;
+// Istakanın her sırasındaki yuva sayısı: en az 15; telefonda ıstaka ne kadar taş alıyorsa o kadar (fitRackCols)
+let COLS = 15, SLOTS = 30;
 // Avatarlar: emoji + arka plan rengi (sunucu sadece sıra numarasını tutar)
 const AV_E = ['🦊', '🐻', '🐼', '🐯', '🦁', '🐸', '🐵', '🐧', '🦉', '🐺', '🐱', '🐶', '🐰', '🐨', '🦄', '🐙', '🐢', '🦅', '🐝', '🐞', '🌻', '⭐', '🍀', '🔥'];
 const AV_C = ['#c0392b', '#2e86c1', '#c47f0e', '#7d3c98', '#1e8449', '#d35400', '#34495e', '#b03a6e'];
@@ -22,7 +23,7 @@ if (!token) {
 }
 
 let S = null;                        // sunucudan gelen son durum
-let slots = Array(SLOTS).fill(null); // ıstaka: 2 sıra x 15 yuva, taş id'leri
+let slots = Array(SLOTS).fill(null); // ıstaka: 2 sıra x COLS yuva, taş id'leri
 let sel = null;                      // seçili taş
 let handKey = null;
 let fresh = new Set();               // yeni çekilen taşlar
@@ -374,18 +375,9 @@ function fitLayout() {
   // Dar dikey ekran (düzen 'short' değilse): altın oran — ıstaka genişliği ekranın 1/φ'si
   const byW = short ? (vw - 22 - 112 - 14 * gap) / 15 : (vw / PHI - 40 - 14 * gap) / 15;
   const byH = short ? Math.min(((vh * 0.27 - 14) / 2) / 1.38, vw * (ZOOM > 1 ? 0.039 : 0.042)) : (((vh - 110) * (1 - 1 / PHI) - 30) / 2) / 1.38;
-  let tw = Math.max(16, Math.min(short ? 54 : 96, byW, byH));
-  let th = tw * 1.38;
-  // Telefon yatay: ıstaka yüksekliği ekranın ~%27'si; taşlar o yükseklikte, genişlikleri ıstakanın tamamını
-  // dolduracak kadar (en basık 1:1,15). Böylece 15 yuva ıstakanın sağ ucuna dek uzanır, boş ahşap kalmaz.
-  if (short && ZOOM === 1) {
-    th = Math.max(22, Math.min(54 * 1.38, (vh * 0.27 - 14) / 2));
-    tw = Math.max(16, Math.min(54, byW, th / 1.15));
-    th = Math.min(th, tw * 1.38);
-  }
+  const tw = Math.max(16, Math.min(short ? 54 : 96, byW, byH));
   const root = document.documentElement.style;
   root.setProperty('--tw', tw.toFixed(1) + 'px');
-  root.setProperty('--th', th.toFixed(1) + 'px');
   root.setProperty('--gap', gap + 'px');
   root.setProperty('--bar', bar + 'px');
   root.setProperty('--sw', Math.max(14, Math.min(short ? 30 : 38, tw * (short ? 0.62 : 0.5))).toFixed(1) + 'px');
@@ -507,7 +499,7 @@ function vt(t) {
 const vts = ids => ids.map(id => vt(tileById(id)));
 const meldOf = ids => Rules.makeMeld(vts(ids), VOKEY);
 
-// Grupları iki sıraya (15'er yuva) aralarında birer boşlukla paketler; kalan taşlar bir boşluk sonra gelir.
+// Grupları iki sıraya (COLS'ar yuva) aralarında birer boşlukla paketler; kalan taşlar bir boşluk sonra gelir.
 // Hiçbir zaman iki grubu bitişik koymaz. Sığmazsa null.
 function arrange(groups, rest) {
   const tryOrder = list => {
@@ -1236,9 +1228,36 @@ function renderMe() {
   }
 }
 
+// Telefon yatayda ıstaka ekran boyunca uzanır: her sıraya ıstakanın alabildiği kadar yuva konur (en az 15).
+// Yuva sayısı değişince taşlar yerlerinde kalır; daralırken sığmayan taşlar boşluklar kısaltılarak içeri alınır.
+function rackColsFit() {
+  const rack = $('#rack');
+  if (!document.body.classList.contains('short') || document.body.classList.contains('zoomed') || !rack.clientWidth) return 15;
+  const cs = getComputedStyle(rack), css = getComputedStyle(document.documentElement);
+  const inner = rack.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const tw = parseFloat(css.getPropertyValue('--tw')) || 40, gap = parseFloat(css.getPropertyValue('--gap')) || 2;
+  return Math.max(15, Math.floor((inner + gap) / (tw + gap)));
+}
+function setRackCols(n) {
+  if (n === COLS) return;
+  const rows = [0, 1].map(r => slots.slice(r * COLS, r * COLS + COLS));
+  const over = [];
+  rows.forEach(row => {
+    while (row.length > n && row[row.length - 1] == null) row.pop();
+    // grupları ayıran tek boşluklara dokunmadan fazla boşlukları sağdan kısalt; yine sığmazsa fazlası başka yere
+    for (let k = row.length - 1; row.length > n && k > 0; k--) if (row[k] == null && row[k - 1] == null) row.splice(k, 1);
+    while (row.length > n) { const id = row.pop(); if (id != null) over.push(id); }
+    while (row.length < n) row.push(null);
+  });
+  COLS = n; SLOTS = 2 * n;
+  slots = rows[0].concat(rows[1]);
+  rackHistory = [];
+  over.forEach(id => (S ? placeNew(id) : (slots[slots.indexOf(null)] = id)));
+}
 function renderRack() {
   const rack = $('#rack');
   rack.innerHTML = '';
+  setRackCols(rackColsFit());
   const ev = evalRack();
   const inMeld = new Set(ev.melds.flatMap(m => m.ids));
   const inPair = new Set(ev.pairs.flatMap(p => p.ids));
@@ -1249,6 +1268,7 @@ function renderRack() {
   for (let r = 0; r < 2; r++) {
     const row = document.createElement('div');
     row.className = 'rackrow';
+    row.style.gridTemplateColumns = `repeat(${COLS}, var(--tw))`;
     for (let c = 0; c < COLS; c++) {
       const i = r * COLS + c;
       const slot = document.createElement('div');

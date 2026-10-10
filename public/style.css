@@ -1073,7 +1073,3 @@ body:not(.short) .turnbar.low i { background: #e2402f; }
 }
 @keyframes rlturn { 0%, 25% { transform: rotate(0); } 55%, 85% { transform: rotate(-90deg); } 100% { transform: rotate(0); } }
 @media (prefers-reduced-motion: reduce) { .rl-phone { animation: none; transform: rotate(-90deg); } }
-
-/* ===== Telefon yatay: 15 yuva ıstakanın tamamını kaplar (sağ uçta da taş bırakılabilir) ===== */
-body.short:not(.zoomed) .rackrow { grid-template-columns: repeat(15, minmax(var(--tw), 1fr)); justify-content: stretch; }
-body.short:not(.zoomed) .rackrow .slot { width: auto; display: flex; justify-content: center; }
