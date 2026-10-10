@@ -938,3 +938,28 @@ body.zoomed.short .rack { flex: 0 1 auto; }
 .tlegend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 8px 0 0; font-size: 12px; color: var(--muted); }
 .tlegend .tcell { height: 20px; min-width: 18px; color: #2b2418; font-size: 11px; }
 .short .tcell { height: 20px; font-size: 11px; }
+
+/* ===== Per tahtası: ızgara çizgileri yok; taş biçiminde yuvalar JS'te çiziliyor ===== */
+.melds, .short .melds { background-image: none !important; background-color: rgba(6, 20, 36, .55); }
+#seriBoard .half + .half::before { background: rgba(255,255,255,.14); }
+/* Çiftler: çift biçiminde yuvalar, düzenli sütunlar */
+#ciftBoard, .short #ciftBoard {
+  display: grid; grid-template-columns: repeat(var(--pcols, 2), var(--pw, 40px)); grid-auto-rows: var(--cellh, 28px);
+  column-gap: 8px; row-gap: 4px; align-content: start; padding: 5px 5px 5px 11px; overflow: hidden;
+  background-color: rgba(6, 20, 36, .55); border-left: 0; position: relative; flex: none;
+}
+#ciftBoard .meld { display: flex; gap: 0; padding: 0; margin: 0; height: var(--cellh); background: transparent; border-radius: 4px; box-shadow: inset 3px 0 0 var(--oc); padding-left: 0; position: relative; }
+#ciftBoard .meld::before { content: ''; position: absolute; left: -7px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: var(--oc); }
+#ciftBoard .meld { box-shadow: none; }
+#ciftBoard .tile.sm { --w: calc(var(--cell) - 2px); --h: calc(var(--cellh) - 2px); margin: 1px; }
+#ciftBoard .blabel { position: absolute; inset: 0; }
+.melds { gap: 10px; }
+/* ===== Pencere kapatma ✕: hep görünür, kaydırma gerekmez ===== */
+.modalx {
+  position: fixed; z-index: 31; top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right));
+  width: 40px; height: 40px; padding: 0; border-radius: 50%; font-size: 18px; font-weight: 700;
+  background: rgba(10, 30, 50, .92); color: #fff; box-shadow: 0 0 0 2px rgba(255,255,255,.35), 0 6px 16px rgba(0,0,0,.5);
+}
+.modalx[hidden] { display: none; }
+/* Taş sayısı adın altında yazıyla gösteriliyor; avatar köşesindeki tekrar rozet kaldırıldı */
+.ava .acount { display: none !important; }

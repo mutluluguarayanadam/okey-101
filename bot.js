@@ -401,8 +401,11 @@ function chooseDiscard(g, seat) {
       for (let c = 0; c < 4; c++) for (let v = 1; v <= 13; v++) for (let n = kn.unseen(c, v); n > 0; n--) pool.push({ id: -1 - pool.length, c, v, fake: false });
       if (pool.length) {
         const N = Math.min(X.lookN, pool.length);
+        // Örnekleme duruma bağlı sabit tohumla: aynı durumda bot da öneri de hep aynı kararı verir
+        let sd = (g.turnCount * 7919 + hand.reduce((a, t) => a * 31 + t.id + 1, seat + 1)) >>> 0;
+        const rnd = () => ((sd = (sd * 1664525 + 1013904223) >>> 0) / 4294967296);
         const sample = [];
-        for (let i = 0; i < N; i++) sample.push(pool[Math.floor(Math.random() * pool.length)]);
+        for (let i = 0; i < N; i++) sample.push(pool[Math.floor(rnd() * pool.length)]);
         const obj = me.opened ? 'tiles' : 'score';
         const val = sol => (me.opened ? sol.melds.reduce((a, m) => a + m.length, 0) * 10 : Math.min(sol.score, g.barrier(seat).per + 15));
         let bestAdj = Infinity;

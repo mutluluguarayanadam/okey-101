@@ -340,27 +340,22 @@ document.addEventListener('pointerdown', e => {
 let ZOOM = 1;
 const DESIGN_W = 1100;
 function fitLayout() {
-  const rvw = window.innerWidth, rvh = window.innerHeight;
-  const land = rvw / rvh >= 1.3;
-  ZOOM = land && rvw > DESIGN_W ? rvw / DESIGN_W : 1;
+  // Telefon yatay (alçak ekran): Okey Plus düzeni. Masaüstü/tablet: kendi geniş masa düzeni (ölçekleme yok).
+  ZOOM = 1;
   const g = $('#game');
-  if (g) g.style.zoom = ZOOM === 1 ? '' : ZOOM;
-  document.body.classList.toggle('zoomed', ZOOM > 1);
-  const vw = rvw / ZOOM, vh = rvh / ZOOM;
-  const short = land && vh < 720;
+  if (g) g.style.zoom = '';
+  document.body.classList.remove('zoomed');
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const short = vw > vh && vh < 560;
   document.body.classList.toggle('short', short);
   placeControls(short);
   const gap = vw < 700 ? 2 : 3;
   const bar = 0;
-  // Kısa ekranda ıstakanın iki yanında büyük ÇİFT DİZ / SERİ DİZ düğmeleri var (2 x 55px)
-  const PHI = 1.618;
-  // Telefon: ıstakanın iki yanında büyük ÇİFT DİZ / SERİ DİZ düğmeleri var (2 x 55px)
-  // Masaüstü: altın oran — ıstaka genişliği ekranın 1/φ'si (%61,8)
-  const byW = short ? (vw - 22 - 112 - 14 * gap) / 15 : (vw / PHI - 40 - 14 * gap) / 15;
-  // Telefon: Okey Plus oranları (ıstaka yüksekliğin ~%27'si). Masaüstü: ıstaka, masa + ıstaka yüksekliğinin en fazla %38,2'si
-  // Telefonda taş ekran genişliğinin ~%4,2'si (Okey Plus); büyütülmüş geniş ekranda ~%3,4'ü (daha az yer kaplasın)
-  const byH = short ? Math.min(((vh * 0.27 - 14) / 2) / 1.38, vw * (ZOOM > 1 ? 0.034 : 0.042)) : (((vh - 110) * (1 - 1 / PHI) - 30) / 2) / 1.38;
-  const tw = Math.max(16, Math.min(short ? 54 : 96, byW, byH));
+  // Telefon: ıstakanın iki yanında büyük ÇİFT DİZ / SERİ DİZ düğmeleri (2 x 55px); taş ~ekranın %4'ü, ıstaka ~%27 yükseklik
+  // Masaüstü: taş ekran genişliğinin ~%3,2'si (1920'de ~61px), ıstaka yüksekliğin en fazla ~%26'sı
+  const byW = short ? (vw - 22 - 112 - 14 * gap) / 15 : Math.min(vw * 0.032, (vw - 40 - 14 * gap) / 15);
+  const byH = short ? Math.min(((vh * 0.27 - 14) / 2) / 1.38, vw * 0.042) : ((vh * 0.26 - 24) / 2) / 1.38;
+  const tw = Math.max(16, Math.min(short ? 54 : 64, byW, byH));
   const root = document.documentElement.style;
   root.setProperty('--tw', tw.toFixed(1) + 'px');
   root.setProperty('--gap', gap + 'px');
@@ -1058,6 +1053,36 @@ function renderMelds() {
   bs.style.setProperty('--cell', cell + 'px');
   bs.style.setProperty('--cellh', cellH + 'px');
   bs.style.setProperty('--rowh', rowH + 'px');
+  // Her yarıda: 13 taş biçiminde yuva, satır satır (yuvalar taşlarla birebir hizalı)
+  const slotSvg = (w, h, rects) => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}'>${rects}</svg>`)}")`;
+  const r = Math.max(2, Math.round(cell * 0.16));
+  let rects = '';
+  for (let k = 0; k < 13; k++) rects += `<rect x='${k * cell + 1.5}' y='1.5' width='${cell - 3}' height='${cellH - 3}' rx='${r}' fill='rgba(255,255,255,0.025)' stroke='rgba(255,255,255,0.055)'/>`;
+  halves.forEach(hf => {
+    hf.style.backgroundImage = slotSvg(13 * cell, rowH, rects);
+    hf.style.backgroundSize = `${13 * cell}px ${rowH}px`;
+    hf.style.backgroundPosition = '12px 0';
+    hf.style.backgroundRepeat = 'repeat-y';
+  });
+  // Çiftler alanı: aynı kutu boyunda, çift biçiminde (yan yana iki taş) yuvalar ve düzenli sütunlar
+  const pw = 2 * cell + 6, pg = 8;
+  if (!document.body.classList.contains('short')) bc.style.width = (2 * pw + pg + 14) + 'px'; else bc.style.width = '';
+  const bcw = (bc.clientWidth || (2 * pw + pg + 14)) - 10;
+  const pcols = Math.max(1, Math.floor((bcw + pg) / (pw + pg)));
+  bc.style.setProperty('--pcols', pcols);
+  bc.style.setProperty('--pw', pw + 'px');
+  bc.style.setProperty('--cell', cell + 'px');
+  bc.style.setProperty('--cellh', cellH + 'px');
+  let prects = '';
+  for (let k = 0; k < pcols; k++) {
+    const x = k * (pw + pg) + 6;
+    prects += `<rect x='${x + 1.5}' y='1.5' width='${cell - 3}' height='${cellH - 3}' rx='${r}' fill='rgba(255,255,255,0.025)' stroke='rgba(255,255,255,0.055)'/>`
+      + `<rect x='${x + cell + 1.5}' y='1.5' width='${cell - 3}' height='${cellH - 3}' rx='${r}' fill='rgba(255,255,255,0.025)' stroke='rgba(255,255,255,0.055)'/>`;
+  }
+  bc.style.backgroundImage = slotSvg(pcols * (pw + pg), rowH, prects);
+  bc.style.backgroundSize = `${pcols * (pw + pg)}px ${rowH}px`;
+  bc.style.backgroundPosition = '5px 5px';
+  bc.style.backgroundRepeat = 'repeat-y';
   const cap = Math.max(1, Math.floor((H - 8) / rowH));
   const tid = drag ? drag.id : sel;
   let t = tid != null ? tileById(tid) : null;
@@ -1259,6 +1284,7 @@ function discard(id, force) {
 
 // Genel açılır pencere (oyun güncellemeleri üzerine yazmasın diye kilitlenir)
 function openPanel(html, bind) {
+  $('#modalX').hidden = false;
   leaving = true;
   $('#modalBody').className = 'panel';
   $('#modalBody').innerHTML = html;
@@ -1697,6 +1723,7 @@ function renderModal() {
   const modal = $('#modal');
   if (leaving) return;
   const endedNow = S && !S.lobby && S.phase === 'ended' && S.result;
+  $('#modalX').hidden = !!endedNow && discardsOpen == null; // el sonu sonucu ✕ ile kapanmaz (sonraki el kendiliğinden başlar)
   $('#modalBody').classList.remove('wide');
   if (S && !S.lobby && discardsOpen != null && !endedNow) {
     modal.classList.remove('hidden');
@@ -1864,3 +1891,11 @@ function confetti() {
   })(t0);
   beep([523, 659, 784, 1047], 0.15);
 }
+
+// Pencerelerin sağ üstündeki ✕: kaydırmaya gerek kalmadan her zaman kapatılabilir
+$('#modalX').onclick = () => {
+  if (leaving) { closePanel(); return; }
+  discardsOpen = null;
+  scoresOpen = false;
+  if (S && !S.lobby) renderModal(); else $('#modal').classList.add('hidden');
+};

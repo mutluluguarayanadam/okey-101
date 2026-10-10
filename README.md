@@ -25,7 +25,9 @@ Not: Ücretsiz sunucu 15 dakika kimse bağlanmazsa uyur; ilk girişte açılmas�
 - **Per tahtası (Okey Plus gibi):** Her per ayrı satırda; taşlar sayılarına denk gelen 1–13 kutularına oturur. Tahta iki yarıdır, perler önce sol sonra sağ yarıyı doldurur; çok per açılınca kutular küçülür, hepsi her zaman tek ekranda görünür. Satır başındaki renkli nokta perin sahibini gösterir.
 - **Çıkan taşlar (🧮):** Her taşın 2 kopyasından kaçının göründüğü (atılanlar, perler, gösterge, kendi elin) 4 renk × 13 sayı tablosunda; hiç görünmeyen taşlar rakiplerde olabilir.
 - **Masadan çıkış:** Çık ya da Ana menü ile ayrılınca (ya da başka masaya geçince) koltuğa hemen bot geçer.
-- **Geniş ekran:** Masaüstü ve tablette aynı Okey Plus düzeni ekrana orantılı ölçeklenir.
+- **Masaüstü:** Kendi geniş masa düzeni (oyuncular masanın etrafında, üst çubukta simgeler); taşlar ekran genişliğinin ~%3,2'si. Telefon yatayda Okey Plus düzeni.
+- Per tahtasında ızgara çizgisi yok; taş biçiminde soluk yuvalar var. Çiftler alanında çift biçiminde yuvalar.
+- Her pencerenin sağ üstünde, kaydırmadan ulaşılan ✕ kapatma düğmesi.
 - **Masaüstü (altın oran):** Istaka ekran genişliğinin ~%61,8'i (1/φ).
 - **Seri diz amaca göre dizer:** Açmadan önce perlerden sonra yarım perleri (iki taşı hazır seri/grup) ikişer ayırır; açtıktan sonra masaya işlenebilecek taşları ayrı bir grupta toplar. **İşle** düğmesi elindeki perleri bozmaz, tur başına 2 işleme hakkını verimli kullanır.
 - **Botlar:** Masada kimse açmamışken ve elden bitmeye 2-3 taş kalmışken açmayı bekletir (elden bitme puanları ikiye katlar); açarken barajı geçecek kadarını indirir; taş atarken görünmeyen taşlardan örnekler çekerek elin gelecekte ne kadar gelişeceğine bakar.
