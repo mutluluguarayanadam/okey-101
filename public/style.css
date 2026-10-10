@@ -986,3 +986,26 @@ body.zoomed.short .rack { flex: 0 1 auto; }
 body:not(.short) .turnbar { display: block; height: 5px; margin: 0 0 6px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; }
 body:not(.short) .turnbar i { display: block; height: 100%; width: calc(var(--p, 1) * 100%); background: #7cc35a; transition: width .1s linear; }
 body:not(.short) .turnbar.low i { background: #e2402f; }
+
+/* ===== Üst şerit: solda menü + durum, ORTADA üstteki oyuncu, altında tam genişlik süre çubuğu ===== */
+.short .mtop {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); grid-template-rows: 28px 5px;
+  align-items: center; column-gap: 10px; row-gap: 3px; height: auto;
+}
+.short .mt-left { grid-column: 1; grid-row: 1; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.short .mt-left #status {
+  flex: 0 1 auto; min-width: 0; padding: 3px 12px; border-radius: 13px; background: rgba(0,0,0,.35);
+  font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left;
+}
+.short .mt-left #status.myturn { color: var(--gold); }
+.short .mt-right { grid-column: 2; grid-row: 1; display: flex; justify-content: center; }
+.short .mt-timer { grid-column: 1 / -1; grid-row: 2; display: block; height: 5px; padding: 0; background: none; border-radius: 3px; }
+.short .mt-timer .mt-bar { height: 5px; }
+.short .mtop .player { padding: 2px 12px 2px 3px; }
+/* Yan oyuncular şeritlerinde dikey olarak ortada */
+.short #pos3, .short #pos1 { justify-content: center; }
+/* El puanı rozetinde gidilmesi gereken yön */
+.handscore .lead { color: #ffe08a; }
+.handscore .lead::before { content: '▲ '; font-size: .8em; }
+/* Istakadaki ters çevrili okeyin altında küçük "OKEY" yazısı (masada yine sade görünür) */
+.rack .tile.joker .okeylbl { position: absolute; left: 0; right: 0; bottom: 14%; font-style: normal; font-size: calc(var(--w) * .2); font-weight: 800; letter-spacing: .04em; color: #c9a75a; text-align: center; }

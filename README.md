@@ -27,13 +27,15 @@ Not: Ücretsiz sunucu 15 dakika kimse bağlanmazsa uyur; ilk girişte açılmas�
 - **Masadan çıkış:** Çık ya da Ana menü ile ayrılınca (ya da başka masaya geçince) koltuğa hemen bot geçer.
 - **Masaüstü / tablet:** Telefondaki Okey Plus düzeni (üstte süre çubuğu, yanlarda oyuncu şeritleri, sağda düğmeler) 1100 px'te kurulup ekrana orantılı büyütülür; taşlar ekran genişliğinin ~%3,9'u.
 - **Süre:** Sırası gelen herkesin (botlar dahil) avatar halkası ve üstteki süre çubuğu kalan süreyle boşalır, son çeyrekte kırmızıya döner. Süre, sunucu ile cihaz saati farklı olsa da doğru gösterilir.
+- **El gücü rozeti (ıstakanın üstü):** Istakadaki dizilişe bakmaz; elindeki tüm taşlarla kurulabilecek en iyi seri puanını ve çift sayısını gösterir. ▲ işareti gitmen gereken yönü (barajı geçen ya da barajına daha yakın olan) gösterir. SERİ AÇ / ÇİFT AÇ da buna göre yanar; ıstaka o şekilde dizili değilse düğme önce dizer, sonra açma önizlemesini açar.
+- **Oyuncu yerleri:** Sağdaki ve soldaki oyuncu kendi şeridinde dikey ortada; karşıdaki oyuncu en üstte, süre çubuğunun hemen üstünde sayfanın ortasında.
 - **Kimde sıra:** Sıra sendeyse ıstaka nabız gibi parlar; rakipteyse onun şeridi / üst çubuktaki çipi yanıp söner. Cihazda "animasyonları azalt" açık olsa da bu göstergeler çalışır.
 - Per tahtasında ızgara çizgisi yok; taş biçiminde soluk yuvalar var. Çiftler alanında çift biçiminde yuvalar.
 - Her pencerenin sağ üstünde, kaydırmadan ulaşılan ✕ kapatma düğmesi.
 - **Masaüstü (altın oran):** Istaka ekran genişliğinin ~%61,8'i (1/φ).
 - **Seri diz amaca göre dizer:** Açmadan önce perlerden sonra yarım perleri (iki taşı hazır seri/grup) ikişer ayırır; açtıktan sonra masaya işlenebilecek taşları ayrı bir grupta toplar. **İşle** düğmesi elindeki perleri bozmaz, tur başına 2 işleme hakkını verimli kullanır.
 - **Botlar:** Masada kimse açmamışken ve elden bitmeye 2-3 taş kalmışken açmayı bekletir (elden bitme puanları ikiye katlar); açarken barajı geçecek kadarını indirir; taş atarken görünmeyen taşlardan örnekler çekerek elin gelecekte ne kadar gelişeceğine bakar.
-- **Seri diz / Çift diz:** Okey, yüzü açıkken kendi sayısıyla değerlendirilir; sağ tık / uzun basma ile ters çevirirsen okey (joker) olarak kullanılır. Açmadan önce barajı geçen en iyi dizilimi, açtıktan sonra bitirmek için en çok taşı yere indiren dizilimi kurar. Gruplar ıstakaya her zaman aralarında boşlukla yerleşir.
+- **Seri diz / Çift diz:** Okey ele ters çevrili gelir ve okey (joker) olarak değerlendirilir; istersen sağ tık / uzun basma ile yüzünü açıp kendi sayısıyla kullanırsın. Açmadan önce barajı geçen en iyi dizilimi, açtıktan sonra bitirmek için en çok taşı yere indiren dizilimi kurar. Gruplar ıstakaya her zaman aralarında boşlukla yerleşir.
 - **Per tahtası:** Açılan seriler solda, çiftler sağda ayrı alanda; perler küçük taşlarla alt alta ve sütun sütun dizilir, kaydırmadan hepsi görünür. Kimin peri olduğu, perin solundaki renkli çizgiden anlaşılır; oyuncuların açış puanı adlarının yanında yazar.
 - **Mavi tema ve Okey Plus ölçüleri (telefon yatay):** Istaka ekranın ~%27'si, taşlar ekran genişliğinin ~%4'ü; per tahtası koyu lacivert ve ızgaralı; gösterge ve yığın ıstaka taşı boyunda; çiftler ayrı alanda; SERİ AÇ ve ÇİFT AÇ ayrı düğmeler; masada oyun bilgisi (Tekli/Eşli, Katlamalı/Katlamasız, El).
 - **Telefon (yatay), önceki not:** Üstte süre çubuğu ve sırası gelen; masanın iki yanında köşe taşları ve dikey oyuncu adları; ortada per tahtası; sağda bilgi sütunu (gösterge, yığın, işlem düğmeleri); ıstakanın solunda büyük ÇİFT DİZ, sağında SERİ DİZ; ıstakanın üstünde el puanı rozeti (baraja ulaşınca mavi).
@@ -71,7 +73,7 @@ Not: Ücretsiz sunucu 15 dakika kimse bağlanmazsa uyur; ilk girişte açılmas�
 - Elini açınca hamle süresi baştan başlar.
 - Elini açan, yerdeki okeyin yerine geçen taşı koyup okeyi alabilir: seriden, 4'lü gruptan ya da çiftten (çiftte okeyin eşiyle aynı taş konur). 3'lü gruptaki ve iki okeyli çiftteki okey belirsiz olduğu için alınamaz. Okeyi almak kimseye ceza yazdırmaz ve aynı tur kullanma zorunluluğu yoktur; el sonunda elde kalan her okey için 101 ceza yazılır.
 - Okey atmak ya da işlek taş atmak 101 cezadır (bitiş taşı hariç). Yerdeki bir okeyi alabilecek taş da işlek sayılır.
-- Okey göstergenin bir üstüdür; ekranda ayrıca gösterilmez. Okey elde kendi yüzüyle durur; oyuncu istediği taşı sağ tık (telefonda uzun basma) ile ters çevirebilir. Masada (perlerde, atılanlarda) okey ters çevrilmiş, numarasız görünür.
+- Okey göstergenin bir üstüdür; ekranda ayrıca gösterilmez. Okey ele ters çevrili gelir (altında küçük OKEY yazısı) ve el gücü, seri/çift diz hesaplarına okey olarak girer; sağ tık (telefonda uzun basma) ile yüzü açılabilir. Masada (perlerde, atılanlarda) okey ters çevrilmiş, numarasız görünür.
 - Eli bitiren -101, açmayan 202 alır. Açan, elinde kalan taşların toplamını yazar; çift açanın puanı ikiye katlanır. Elde kalan her okey için +101 eklenir.
 - Okey atarak, çiftten ya da elden (açtığı turda) bitirmek puanları her biri için ikiye katlar.
 - Dört oyuncu da çift açarsa el iptal edilir ve yeniden dağıtılır.
