@@ -315,7 +315,7 @@ function placeControls(short) {
     $('#menuPop').append(tb);
     $('.mt-left').append(menu);
     $('.mt-right').append(pos2);
-    $('.mt-timer').insertBefore(status, $('.mt-bar'));
+    $('.mt-left').append(status);
     $('#infoCol').append(ind, pile);
     table.append(acts, $('#ciftBoard'));
     $('#rackline').append(hs);
@@ -588,7 +588,7 @@ function syncHand() {
   if (sel != null && !ids.includes(sel)) sel = null;
 }
 
-function autoArrange(mode, quiet) {
+function autoArrange(mode, quiet, done) {
   socket.emit('suggest', { flipped: [...flipped] }, res => {
     if (!S || S.lobby) return;
     const inHand = id => !!tileById(id);
@@ -649,9 +649,33 @@ function autoArrange(mode, quiet) {
     renderGame();
     if (!quiet) {
       const ev = evalRack();
-      toast(mode === 'seri' ? `Seri: ${ev.score} puan` : `${ev.pairs.length} çift`);
+      if (!done) toast(mode === 'seri' ? `Seri: ${ev.score} puan` : `${ev.pairs.length} çift`);
     }
+    if (done) done();
   });
+}
+
+// Elin gücü: ıstakadaki dizilişten bağımsız, eldeki tüm taşlarla kurulabilecek en iyi seri puanı ve çift sayısı
+// (Seri diz / Çift diz'in kuracağı dizilimle aynı hesap). El değişince sunucudan bir kez istenir.
+let pot = { key: null, score: 0, pairs: 0 };
+let potPending = null;
+function potKey() { return S.handIndex + '|' + S.hand.map(t => t.id).sort((a, b) => a - b).join(',') + '|' + [...flipped].sort((a, b) => a - b).join(','); }
+function refreshPotential() {
+  if (!S || S.lobby || !S.hand || me().opened) return;
+  const k = potKey();
+  if (k === pot.key || k === potPending) return;
+  potPending = k;
+  socket.emit('suggest', { flipped: [...flipped] }, res => {
+    if (potPending === k) potPending = null;
+    if (!S || S.lobby || !res) return;
+    pot = { key: k, score: res.score || 0, pairs: (res.pairs || []).length };
+    if (potKey() === k) { renderMe(); renderActions(); }
+  });
+}
+// Güncel el için bilinen en iyi değerler (hesap gelmeden önce ıstakadaki dizilimle)
+function handPotential(ev) {
+  const fresh = S && pot.key === potKey();
+  return { score: Math.max(ev.score, fresh ? pot.score : 0), pairs: Math.max(ev.pairs.length, fresh ? pot.pairs : 0) };
 }
 
 function rackGroups() {
@@ -750,6 +774,7 @@ function renderGame() {
   if (!(drag && drag.moved)) renderRack();
   renderActions();
   renderModal();
+  refreshPotential();
   tickTimer();
   runAnimations(before, fresh_state);
 }
@@ -1168,9 +1193,13 @@ function renderMe() {
   const ev = evalRack();
   const hs = $('#handScore');
   if (!m.opened) {
-    const b = S.barrier;
-    hs.classList.toggle('ready', ev.score >= b.per || ev.pairs.length >= b.cift);
-    hs.innerHTML = `<span>Seri <b class="${ev.score >= b.per ? 'ok' : ''}">${ev.score}</b>/${b.per}</span><span>Çift <b class="${ev.pairs.length >= b.cift ? 'ok' : ''}">${ev.pairs.length}</b>/${b.cift}</span>`;
+    const b = S.barrier, hp = handPotential(ev);
+    const sOk = hp.score >= b.per, cOk = hp.pairs >= b.cift;
+    // Hangi yola gitmeli: barajı geçen, geçen yoksa barajına oranla daha yakın olan
+    const lead = sOk !== cOk ? (sOk ? 's' : 'c') : (hp.score / b.per >= hp.pairs / b.cift ? 's' : 'c');
+    hs.classList.toggle('ready', sOk || cOk);
+    hs.title = 'Istakadaki dizilişten bağımsız: elindeki taşlarla kurulabilecek en iyi seri puanı ve çift sayısı. ▲ gitmen gereken yön.';
+    hs.innerHTML = `<span class="${lead === 's' ? 'lead' : ''}">Seri <b class="${sOk ? 'ok' : ''}">${hp.score}</b>/${b.per}</span><span class="${lead === 'c' ? 'lead' : ''}">Çift <b class="${cOk ? 'ok' : ''}">${hp.pairs}</b>/${b.cift}</span>`;
   } else {
     // Çevrilmemiş okey yüzündeki sayıyla sayılır (okeyi ele vermesin)
     const left = S.hand.reduce((s, t) => s + (Rules.isJoker(t, S.okey) && !flipped.has(t.id) ? t.v : Rules.tilePoints(t, S.okey)), 0);
@@ -1233,10 +1262,11 @@ function renderActions() {
   const ciftArea = S.players.some(p => p.openType === 'cift');
   let sReady, cReady;
   if (!m.opened) {
-    sReady = ev.score >= S.barrier.per;
-    cReady = ev.pairs.length >= S.barrier.cift;
-    os.textContent = sReady ? `Seri aç (${ev.score})` : 'Seri aç';
-    oc.textContent = cReady ? `Çift aç (${ev.pairs.length})` : 'Çift aç';
+    const hp = handPotential(ev);
+    sReady = hp.score >= S.barrier.per;
+    cReady = hp.pairs >= S.barrier.cift;
+    os.textContent = sReady ? `Seri aç (${hp.score})` : 'Seri aç';
+    oc.textContent = cReady ? `Çift aç (${hp.pairs})` : 'Çift aç';
     os.classList.remove('hidden');
     oc.classList.remove('hidden');
   } else {
@@ -1356,6 +1386,14 @@ function layable(ev) {
 }
 
 // Açmadan / indirmeden önce önizleme: hangi perler gidecek, oyuncu seçer
+// Aç: ıstaka barajı geçecek gibi dizili değilse önce Seri/Çift diz yapılır, sonra önizleme açılır
+function openWith(mode) {
+  const m = me(), ev = evalRack();
+  const enough = m.opened || (mode === 'seri' ? ev.score >= S.barrier.per : ev.pairs.length >= S.barrier.cift);
+  if (enough) doOpen(mode);
+  else autoArrange(mode, false, () => doOpen(mode));
+}
+
 function doOpen(mode) {
   const m = me();
   const ev = evalRack();
@@ -1423,8 +1461,8 @@ document.querySelector('.actions').onclick = e => {
   const a = e.target.dataset.act;
   if (!a || !S) return;
   if (a === 'seri' || a === 'cift') autoArrange(a);
-  else if (a === 'openSeri') doOpen('seri');
-  else if (a === 'openCift') doOpen('cift');
+  else if (a === 'openSeri') openWith('seri');
+  else if (a === 'openCift') openWith('cift');
   else if (a === 'undo') act({ type: 'undoTake' });
   else if (a === 'auto') act({ type: 'autoAttach' });
   else if (a === 'undoRack') undoRack();
@@ -1860,8 +1898,8 @@ document.addEventListener('keydown', e => {
   else if (k === 'c' || k === 'ç') autoArrange('cift');
   else if ((k === 'delete' || k === 'backspace') && sel != null) { e.preventDefault(); discard(sel); }
   else if (k === 'enter') {
-    if (!document.querySelector('[data-act="openSeri"]').disabled) doOpen('seri');
-    else if (!document.querySelector('[data-act="openCift"]').disabled) doOpen('cift');
+    if (!document.querySelector('[data-act="openSeri"]').disabled) openWith('seri');
+    else if (!document.querySelector('[data-act="openCift"]').disabled) openWith('cift');
   }
 });
 

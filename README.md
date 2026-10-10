@@ -27,6 +27,8 @@ Not: Ücretsiz sunucu 15 dakika kimse bağlanmazsa uyur; ilk girişte açılmas�
 - **Masadan çıkış:** Çık ya da Ana menü ile ayrılınca (ya da başka masaya geçince) koltuğa hemen bot geçer.
 - **Masaüstü / tablet:** Telefondaki Okey Plus düzeni (üstte süre çubuğu, yanlarda oyuncu şeritleri, sağda düğmeler) 1100 px'te kurulup ekrana orantılı büyütülür; taşlar ekran genişliğinin ~%3,9'u.
 - **Süre:** Sırası gelen herkesin (botlar dahil) avatar halkası ve üstteki süre çubuğu kalan süreyle boşalır, son çeyrekte kırmızıya döner. Süre, sunucu ile cihaz saati farklı olsa da doğru gösterilir.
+- **El gücü rozeti (ıstakanın üstü):** Istakadaki dizilişe bakmaz; elindeki tüm taşlarla kurulabilecek en iyi seri puanını ve çift sayısını gösterir. ▲ işareti gitmen gereken yönü (barajı geçen ya da barajına daha yakın olan) gösterir. SERİ AÇ / ÇİFT AÇ da buna göre yanar; ıstaka o şekilde dizili değilse düğme önce dizer, sonra açma önizlemesini açar.
+- **Oyuncu yerleri:** Sağdaki ve soldaki oyuncu kendi şeridinde dikey ortada; karşıdaki oyuncu en üstte, süre çubuğunun hemen üstünde sayfanın ortasında.
 - **Kimde sıra:** Sıra sendeyse ıstaka nabız gibi parlar; rakipteyse onun şeridi / üst çubuktaki çipi yanıp söner. Cihazda "animasyonları azalt" açık olsa da bu göstergeler çalışır.
 - Per tahtasında ızgara çizgisi yok; taş biçiminde soluk yuvalar var. Çiftler alanında çift biçiminde yuvalar.
 - Her pencerenin sağ üstünde, kaydırmadan ulaşılan ✕ kapatma düğmesi.
