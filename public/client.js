@@ -200,8 +200,12 @@ $('#btnLeaveRoom').onclick = confirmLeave;
 socket.on('kicked', () => { toast('Bu koltuğa başka bir sekmeden bağlanıldı'); S = null; render(); });
 socket.on('err', m => toast(m));
 socket.on('state', st => {
+  const prev = S;
   S = st;
   if (!S.lobby) {
+    // Kalan süre yerel saate çevrilir (sunucu ile cihaz saati farklı olabilir); aynı süre için gelen sonraki güncellemelerde bitiş zamanı sabit kalır
+    S.deadline = S.timeLeft != null ? Date.now() + S.timeLeft : null;
+    if (S.deadline && prev && prev.deadline && prev.timerId === S.timerId) S.deadline = prev.deadline;
     const mine = myTurn();
     if (mine && !wasMyTurn) turnAlert();
     wasMyTurn = mine;
@@ -340,22 +344,27 @@ document.addEventListener('pointerdown', e => {
 let ZOOM = 1;
 const DESIGN_W = 1100;
 function fitLayout() {
-  // Telefon yatay (alçak ekran): Okey Plus düzeni. Masaüstü/tablet: kendi geniş masa düzeni (ölçekleme yok).
-  ZOOM = 1;
+  // Masaüstü/tablet (yatay, geniş): telefondaki Okey Plus düzeni 1100 px'te kurulup ekrana büyütülür;
+  // böylece üstte süre çubuğu, yanlarda oyuncu şeritleri, sağda düğmeler aynen kalır, ekran boş kalmaz.
+  const rvw = window.innerWidth, rvh = window.innerHeight;
+  const land = rvw / rvh >= 1.3;
+  ZOOM = land && rvw > DESIGN_W ? rvw / DESIGN_W : 1;
   const g = $('#game');
-  if (g) g.style.zoom = '';
-  document.body.classList.remove('zoomed');
-  const vw = window.innerWidth, vh = window.innerHeight;
-  const short = vw > vh && vh < 560;
+  if (g) g.style.zoom = ZOOM === 1 ? '' : ZOOM;
+  document.body.classList.toggle('zoomed', ZOOM > 1);
+  const vw = rvw / ZOOM, vh = rvh / ZOOM;
+  const short = land && vh < 720;
   document.body.classList.toggle('short', short);
   placeControls(short);
   const gap = vw < 700 ? 2 : 3;
   const bar = 0;
-  // Telefon: ıstakanın iki yanında büyük ÇİFT DİZ / SERİ DİZ düğmeleri (2 x 55px); taş ~ekranın %4'ü, ıstaka ~%27 yükseklik
-  // Masaüstü: taş ekran genişliğinin ~%3,2'si (1920'de ~61px), ıstaka yüksekliğin en fazla ~%26'sı
-  const byW = short ? (vw - 22 - 112 - 14 * gap) / 15 : Math.min(vw * 0.032, (vw - 40 - 14 * gap) / 15);
-  const byH = short ? Math.min(((vh * 0.27 - 14) / 2) / 1.38, vw * 0.042) : ((vh * 0.26 - 24) / 2) / 1.38;
-  const tw = Math.max(16, Math.min(short ? 54 : 64, byW, byH));
+  const PHI = 1.618;
+  // Telefon: ıstakanın iki yanında büyük ÇİFT DİZ / SERİ DİZ düğmeleri (2 x 55px); ıstaka yüksekliğin ~%27'si
+  // Taş: telefonda ekran genişliğinin ~%4,2'si (Okey Plus); büyütülmüş geniş ekranda ~%3,9'u (boş alan kalmasın)
+  // Dar dikey ekran (düzen 'short' değilse): altın oran — ıstaka genişliği ekranın 1/φ'si
+  const byW = short ? (vw - 22 - 112 - 14 * gap) / 15 : (vw / PHI - 40 - 14 * gap) / 15;
+  const byH = short ? Math.min(((vh * 0.27 - 14) / 2) / 1.38, vw * (ZOOM > 1 ? 0.039 : 0.042)) : (((vh - 110) * (1 - 1 / PHI) - 30) / 2) / 1.38;
+  const tw = Math.max(16, Math.min(short ? 54 : 96, byW, byH));
   const root = document.documentElement.style;
   root.setProperty('--tw', tw.toFixed(1) + 'px');
   root.setProperty('--gap', gap + 'px');
@@ -741,6 +750,7 @@ function renderGame() {
   if (!(drag && drag.moved)) renderRack();
   renderActions();
   renderModal();
+  tickTimer();
   runAnimations(before, fresh_state);
 }
 
@@ -1574,19 +1584,24 @@ window.addEventListener('pointerup', endDrag);
 window.addEventListener('pointercancel', endDrag);
 
 let hurryFor = null;
-// Süre halkası
-setInterval(() => {
+// Süre halkası (sırası gelenin avatarı) ve üstteki süre çubuğu. Her çizimden hemen sonra da çağrılır;
+// yeni çizilen avatar bir an dolu halka göstermesin.
+function tickTimer() {
   if (!S || S.lobby) return;
   const left = S.deadline ? S.deadline - Date.now() : Infinity;
-  const p = S.deadline ? Math.max(0, Math.min(1, left / (S.turnMs || 45000))) : 1;
-  document.querySelectorAll('.turn .ava').forEach(a => a.style.setProperty('--p', p));
-  $('#turnbar').style.setProperty('--p', myTurn() ? p : 0);
+  const p = S.deadline ? Math.max(0, Math.min(1, left / (S.turnMs || 45000))) : (S.phase === 'ended' ? 0 : 1);
+  const low = S.deadline && left < Math.min(10000, (S.turnMs || 45000) * 0.25);
+  document.querySelectorAll('.turn .ava').forEach(a => { a.style.setProperty('--p', p); a.classList.toggle('low', !!low); });
+  $('#turnbar').style.setProperty('--p', S.phase === 'ended' ? 0 : p);
+  $('#turnbar').classList.toggle('low', !!low);
   $('.mt-bar').style.setProperty('--p', S.phase === 'ended' ? 0 : p);
+  $('.mt-bar').classList.toggle('low', !!low);
   $('#turnbar').classList.toggle('on', myTurn());
   const hurry = myTurn() && left < 10000;
   document.body.classList.toggle('hurry', hurry);
   if (hurry && hurryFor !== S.deadline) { hurryFor = S.deadline; beep([300, 300], 0.14, 'square'); buzz([80, 60, 80]); }
-}, 250);
+}
+setInterval(tickTimer, 100);
 
 // ---------- Puan tablosu / el sonu ----------
 let discardsOpen = null; // açık olan atılanlar penceresi (oyuncu sırası)

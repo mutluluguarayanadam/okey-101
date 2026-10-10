@@ -749,7 +749,6 @@ body.myturn.hurry .rack { animation: rackhurry .6s ease-in-out infinite; }
 /* Konfeti */
 .confetti { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 80; pointer-events: none; display: none; }
 .confetti.on { display: block; }
-@media (prefers-reduced-motion: reduce) { body.myturn .rack { animation: none; } }
 
 /* Per tahtası taşları (telefonda küçük) */
 .melds .tile.sm { --w: var(--bw, var(--sw)); --h: calc(var(--bw, var(--sw)) * 1.38); }
@@ -963,3 +962,27 @@ body.zoomed.short .rack { flex: 0 1 auto; }
 .modalx[hidden] { display: none; }
 /* Taş sayısı adın altında yazıyla gösteriliyor; avatar köşesindeki tekrar rozet kaldırıldı */
 .ava .acount { display: none !important; }
+
+/* ===== Sıra göstergeleri =====
+   Sıra sendeyken ıstaka nabız gibi parlar (yukarıda: rackglow / rackhurry). Rakibin sırasında onun şeridi / çipi
+   aynı altın ışıkla yanıp söner. Avatarın çevresindeki halka kalan süreyle boşalır; son çeyrekte kırmızı olur. */
+.player.turn .ava.low::before, .mechip.turn .ava.low::before { background: conic-gradient(#e2402f calc(var(--p) * 1turn), rgba(255,255,255,.12) 0); }
+.mt-bar.low i { background: #e2402f; }
+.short #pos3.turn, .short #pos1.turn, .short .mtop .player.turn, .player.turn:not(.mechip) {
+  animation: turnpulse 1.3s ease-in-out infinite;
+}
+.short .mtop .player.turn { border-radius: 14px; }
+@keyframes turnpulse {
+  0%, 100% { box-shadow: inset 0 0 0 2px var(--gold), 0 0 6px 1px rgba(245,192,68,.35); }
+  50% { box-shadow: inset 0 0 0 2px #ffe08a, 0 0 18px 5px rgba(245,192,68,.8); }
+}
+/* "Animasyonları azalt" açık cihazlarda (ör. Windows'ta animasyon efektleri kapalı) da sıra göstergeleri çalışsın */
+@media (prefers-reduced-motion: reduce) {
+  body.myturn .rack { animation: rackglow 1.3s ease-in-out infinite !important; }
+  body.myturn.hurry .rack { animation: rackhurry .6s ease-in-out infinite !important; }
+  .short #pos3.turn, .short #pos1.turn, .short .mtop .player.turn, .player.turn:not(.mechip) { animation: turnpulse 1.3s ease-in-out infinite !important; }
+}
+/* Dikey telefon / kare ekran düzeninde de (üst süre çubuğu yokken) ıstakanın üstünde ince süre çubuğu */
+body:not(.short) .turnbar { display: block; height: 5px; margin: 0 0 6px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; }
+body:not(.short) .turnbar i { display: block; height: 100%; width: calc(var(--p, 1) * 100%); background: #7cc35a; transition: width .1s linear; }
+body:not(.short) .turnbar.low i { background: #e2402f; }
