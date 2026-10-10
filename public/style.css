@@ -1035,3 +1035,23 @@ body:not(.short) .turnbar.low i { background: #e2402f; }
 .bubble.at-t::after { bottom: -5px; left: var(--ax, 50%); margin-left: -6px; }
 .bubble.at-r::after { left: -5px; top: var(--ay, 50%); margin-top: -6px; }
 .bubble.at-l::after { right: -5px; top: var(--ay, 50%); margin-top: -6px; }
+
+/* Sohbetteki hazır mesajlar: lobideki "Hemen oyna" düğmesinin .quick boşlukları burada olmasın; hepsi görünsün (alt satıra geçer) */
+.chatpanel #quick { margin: 0; padding: 0; font-size: inherit; flex-wrap: wrap; overflow: visible; gap: 6px; }
+.chatpanel #quick button { padding: 6px 10px; font-size: 13px; }
+.short .chatpanel #quick button { padding: 4px 8px; font-size: 12px; }
+.chatpanel { overflow-y: auto; }
+
+/* ===== Per tahtası (Okey Plus): ortadan iki eşit yarı, her yarıda 1-13 kutulu satırlar ===== */
+#seriBoard, .short #seriBoard { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: stretch; gap: 14px; height: 100%; overflow: hidden; }
+#seriBoard .half { flex: 1 1 0; min-width: 0; gap: 4px; overflow: hidden; }
+#seriBoard .half + .half::before { left: -8px; width: 2px; background: rgba(255,255,255,.28); }
+#seriBoard .meld.mrow { grid-template-columns: 12px repeat(13, var(--cell)); }
+/* Tahtadaki taşlar: nokta yok (renk zaten belli), sayı taşın içine sığan en büyük boyda, hafif dar yazı */
+.melds .tile.sm:not(.joker):not(.fake):not(.ghostslot), #ciftBoard .tile.sm:not(.joker):not(.fake) { justify-content: center; padding-top: 0; }
+.melds .tile.sm:not(.fake) > i, #ciftBoard .tile.sm:not(.fake) > i { display: none; }
+.melds .tile.sm > span, #ciftBoard .tile.sm > span { font-size: calc(var(--w) * .82); font-weight: 800; letter-spacing: -.06em; transform: scaleX(.8); }
+/* Telefon yatay: yan şeritler, bilgi ve düğme sütunları biraz daraltıldı; per tahtasına daha çok yer kalır (Okey Plus'taki gibi ekranın ~yarısı) */
+.short .table { --strip: 40px; --rcw: 70px; --infow: max(calc(var(--dw) + 10px), 58px); gap: 4px; }
+.short #pos3 .pinfo b, .short #pos1 .pinfo b { max-width: 38px; }
+.short .modeinfo span { font-size: 9px; }

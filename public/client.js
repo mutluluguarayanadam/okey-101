@@ -1036,10 +1036,10 @@ function ownerColor(abs) {
   const p = S.players[abs];
   return p.avatar && !p.bot ? AV_C[p.avatar.c] : AVA[abs];
 }
-// Per tahtası (Okey Plus gibi): her per ayrı bir satır; satırda 1'den 13'e kadar kutucuk var,
-// taşlar sayılarına denk gelen kutuya oturur (1-2-3-4-5 serisi 1..5 kutularına). Tahta iki yarıdır:
-// perler önce sol yarıyı, sonra sağ yarıyı doldurur. Satırın başındaki renkli nokta perin sahibini gösterir.
-// İşlenebilecek boş kutuya "+" konur. Çiftler sağdaki ayrı alanda.
+// Per tahtası (Okey Plus gibi): tahta ortadan iki eşit yarıdır; her per ayrı bir satır, satırda 1'den 13'e
+// kutu var ve taşlar sayılarına denk gelen kutuya oturur (her taşın yeri belli). Perler önce sol yarıyı,
+// sığmazsa sağ yarıyı doldurur. Kutu boyu tahtanın genişliğinden: taşlar sığabilecekleri en büyük boyda.
+// Satırın başındaki renkli nokta perin sahibini gösterir. İşlenebilecek boş kutuya "+" konur. Çiftler ayrı alanda.
 function meldValue(m) {
   const real = m.tiles.find(x => !Rules.isJoker(x, S.okey));
   return real ? Rules.eff(real, S.okey).v : 1;
@@ -1071,38 +1071,13 @@ function renderMelds() {
   const bs = $('#seriBoard'), bc = $('#ciftBoard');
   const W = bs.clientWidth, H = bs.clientHeight;
   if (!W || !H) { requestAnimationFrame(() => S && !S.lobby && bs.clientWidth && renderMelds()); }
-  // Kutu boyu: (1) yarıya 1 nokta + 13 kutu sığsın, (2) ıstaka taşının ~3/4'ünü geçmesin,
-  // (3) bütün seri perleri sığsın — çok per açılınca kutular küçülür, kaydırma çıkmaz.
-  // Tahta tek sütun ya da iki yarı olarak kurulur; hangisinde taşlar daha büyük oluyorsa o seçilir
-  // (telefonda az per varken tek sütun, taşlar iki kat büyük görünür).
   const tw = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tw')) || 40;
-  const nRuns = S.melds.filter(m => m.type !== 'pair').length;
-  const cellFor = nh => {
-    const perHalf = Math.max(1, Math.ceil(nRuns / nh));
-    const byRows = Math.floor(((H - 8) / perHalf - 4) / 1.36);
-    return Math.max(8, Math.min(Math.round(tw * 0.75), Math.floor(((W - 14 * (nh - 1)) / nh - 12) / 13), byRows));
-  };
-  const nHalves = cellFor(1) >= cellFor(2) ? 1 : 2;
-  const cell = cellFor(nHalves);
-  bs.innerHTML = '<div class="half"></div>'.repeat(nHalves);
-  bs.classList.toggle('one', nHalves === 1);
-  const halves = bs.querySelectorAll('.half');
-  const cellH = Math.round(cell * 1.36);
-  const rowH = cellH + 4;
-  bs.style.setProperty('--cell', cell + 'px');
-  bs.style.setProperty('--cellh', cellH + 'px');
-  bs.style.setProperty('--rowh', rowH + 'px');
-  // Her yarıda: 13 taş biçiminde yuva, satır satır (yuvalar taşlarla birebir hizalı)
   const slotSvg = (w, h, rects) => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}'>${rects}</svg>`)}")`;
   const slotRect = (x, c, ch) => `<rect x='${x + 1.5}' y='1.5' width='${c - 3}' height='${ch - 3}' rx='${Math.max(2, Math.round(c * 0.16))}' fill='rgba(255,255,255,0.025)' stroke='rgba(255,255,255,0.055)'/>`;
-  let rects = '';
-  for (let k = 0; k < 13; k++) rects += slotRect(k * cell, cell, cellH);
-  halves.forEach(hf => {
-    hf.style.backgroundImage = slotSvg(13 * cell, rowH, rects);
-    hf.style.backgroundSize = `${13 * cell}px ${rowH}px`;
-    hf.style.backgroundPosition = '12px 0';
-    hf.style.backgroundRepeat = 'repeat-y';
-  });
+  // Yatay ekranda tahta ortadan iki eşit yarı; dikey (dar, uzun) ekranda yarıya 13 kutu sığmaz, tek yarı olur
+  const nH = W >= H ? 2 : 1;
+  bs.innerHTML = '<div class="half"></div>'.repeat(nH);
+  const halves = bs.querySelectorAll('.half');
   // Çiftler alanı: kendi kutu boyuyla (seri tahtasından bağımsız), çift biçiminde (yan yana iki taş) yuvalar.
   // Kutu, alanın genişliğine ve çift sayısına göre seçilir; çiftin iki taşı hep yan yana kalır.
   const pg = 8, pad = 16;
@@ -1132,14 +1107,13 @@ function renderMelds() {
   bc.style.backgroundPosition = '9px 5px';
   bc.style.backgroundRepeat = 'repeat-y';
   bc.innerHTML = '';
-  const cap = nHalves === 1 ? Infinity : Math.max(1, Math.floor((H - 8) / rowH));
   const tid = drag ? drag.id : sel;
   let t = tid != null ? tileById(tid) : null;
   // Çevrilmemiş okey seçilince perler parlamaz (okey olduğunu belli etmesin); çevirince okey gibi işlenir
   if (t && Rules.isJoker(t, S.okey) && !flipped.has(t.id)) t = null;
   const canNow = playing() && me().opened;
   const rel = m => (m.owner - S.you + 4) % 4;
-  let row = 0;
+  const runs = [];
   S.melds.slice().sort((a, b) => rel(a) - rel(b) || a.id - b.id).forEach(m => {
     const el = meldEl(m, t, canNow);
     el.classList.add('own');
@@ -1147,10 +1121,31 @@ function renderMelds() {
     el.title = (el.title ? el.title + ' · ' : '') + (m.owner === S.you ? 'Senin perin' : S.players[m.owner].name);
     if (m.type === 'pair') { bc.appendChild(el); return; }
     layoutRow(el, m);
-    halves[row < cap ? 0 : 1].appendChild(el);
-    row++;
+    runs.push(el);
   });
-  if (!row) halves[0].innerHTML = '<span class="blabel">Açılan seriler burada görünecek</span>';
+  // Kutu boyu: her yarıya 1 nokta + 13 kutu sığsın (genişlik), ıstaka taşını geçmesin; perler iki yarının
+  // satırlarına sığmıyorsa satırlar sığana dek küçülür. Kaydırma çıkmaz.
+  const DOT = 12, MID = 14, GY = 4;
+  const halfW = (W - MID * (nH - 1)) / nH;
+  let cell = Math.max(8, Math.min(Math.round(tw), Math.floor((halfW - DOT) / 13)));
+  const rowsFor = c => Math.max(1, Math.floor((H - 6 + GY) / (Math.round(c * 1.36) + GY)));
+  while (cell > 8 && rowsFor(cell) * nH < runs.length) cell--;
+  const cellH = Math.round(cell * 1.36), rowH = cellH + GY;
+  bs.style.setProperty('--cell', cell + 'px');
+  bs.style.setProperty('--cellh', cellH + 'px');
+  bs.style.setProperty('--rowh', rowH + 'px');
+  // Boş yuvalar: her yarıda 13 taş biçiminde dikdörtgen, satır satır (taşlarla birebir hizalı)
+  let rects = '';
+  for (let k = 0; k < 13; k++) rects += slotRect(k * cell, cell, cellH);
+  halves.forEach(hf => {
+    hf.style.backgroundImage = slotSvg(13 * cell, rowH, rects);
+    hf.style.backgroundSize = `${13 * cell}px ${rowH}px`;
+    hf.style.backgroundPosition = DOT + 'px 0';
+    hf.style.backgroundRepeat = 'repeat-y';
+  });
+  const cap = rowsFor(cell);
+  runs.forEach((el, i) => halves[Math.min(nH - 1, Math.floor(i / cap))].appendChild(el));
+  if (!runs.length) halves[0].innerHTML = '<span class="blabel">Açılan seriler burada görünecek</span>';
   if (!bc.children.length) bc.innerHTML = '<span class="blabel">Çiftler</span>';
 }
 

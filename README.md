@@ -22,7 +22,7 @@ Tarayıcıda http://localhost:3000 aç.
 Not: Ücretsiz sunucu 15 dakika kimse bağlanmazsa uyur; ilk girişte açılması ~1 dakika sürebilir. Sunucu yeniden başlarsa süren oyunlar silinir.
 
 ## Oynanış
-- **Per tahtası (Okey Plus gibi):** Her per ayrı satırda; taşlar sayılarına denk gelen 1–13 kutularına oturur. Tahta iki yarıdır, perler önce sol sonra sağ yarıyı doldurur; çok per açılınca kutular küçülür, hepsi her zaman tek ekranda görünür. Satır başındaki renkli nokta perin sahibini gösterir.
+- **Per tahtası (Okey Plus gibi):** Tahta ortadan iki eşit yarıdır; her per ayrı satırda, taşlar sayılarına denk gelen 1–13 kutularına oturur (her taşın yeri belli). Perler önce sol yarıyı, sığmazsa sağ yarıyı doldurur. Kutular tahtanın genişliğine göre olabildiğince büyüktür; tahtadaki taşlarda sayı büyük ve noktasızdır. Çok per açılınca kutular küçülür, hepsi her zaman tek ekranda görünür. Dikey ekranda tahta tek yarıdır. Satır başındaki renkli nokta perin sahibini gösterir.
 - **Çıkan taşlar (🧮):** Her taşın 2 kopyasından kaçının göründüğü (atılanlar, perler, gösterge, kendi elin) 4 renk × 13 sayı tablosunda; hiç görünmeyen taşlar rakiplerde olabilir.
 - **Masadan çıkış:** Çık ya da Ana menü ile ayrılınca (ya da başka masaya geçince) koltuğa hemen bot geçer.
 - **Masaüstü / tablet:** Telefondaki Okey Plus düzeni (üstte süre çubuğu, yanlarda oyuncu şeritleri, sağda düğmeler) 1100 px'te kurulup ekrana orantılı büyütülür; taşlar ekran genişliğinin ~%3,9'u.
