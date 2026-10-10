@@ -1069,19 +1069,24 @@ function layoutRow(el, m) {
 }
 function renderMelds() {
   const bs = $('#seriBoard'), bc = $('#ciftBoard');
-  bs.innerHTML = '<div class="half"></div><div class="half"></div>';
-  bc.innerHTML = '';
-  const halves = bs.querySelectorAll('.half');
-  // Kutu boyu tahtanın genişliğinden: her yarıda 1 nokta + 13 kutu
   const W = bs.clientWidth, H = bs.clientHeight;
   if (!W || !H) { requestAnimationFrame(() => S && !S.lobby && bs.clientWidth && renderMelds()); }
-  // Kutu boyu: (1) iki yarıya da 1 nokta + 13 kutu sığsın, (2) ıstaka taşının yarısını geçmesin,
-  // (3) bütün seri perleri iki yarıya sığsın — çok per açılınca kutular küçülür, kaydırma çıkmaz.
+  // Kutu boyu: (1) yarıya 1 nokta + 13 kutu sığsın, (2) ıstaka taşının ~3/4'ünü geçmesin,
+  // (3) bütün seri perleri sığsın — çok per açılınca kutular küçülür, kaydırma çıkmaz.
+  // Tahta tek sütun ya da iki yarı olarak kurulur; hangisinde taşlar daha büyük oluyorsa o seçilir
+  // (telefonda az per varken tek sütun, taşlar iki kat büyük görünür).
   const tw = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tw')) || 40;
   const nRuns = S.melds.filter(m => m.type !== 'pair').length;
-  const perHalf = Math.max(1, Math.ceil(nRuns / 2));
-  const byRows = Math.floor(((H - 8) / perHalf - 4) / 1.36);
-  const cell = Math.max(8, Math.min(Math.round(tw * 0.5), Math.floor(((W - 14) / 2 - 12) / 13), byRows));
+  const cellFor = nh => {
+    const perHalf = Math.max(1, Math.ceil(nRuns / nh));
+    const byRows = Math.floor(((H - 8) / perHalf - 4) / 1.36);
+    return Math.max(8, Math.min(Math.round(tw * 0.75), Math.floor(((W - 14 * (nh - 1)) / nh - 12) / 13), byRows));
+  };
+  const nHalves = cellFor(1) >= cellFor(2) ? 1 : 2;
+  const cell = cellFor(nHalves);
+  bs.innerHTML = '<div class="half"></div>'.repeat(nHalves);
+  bs.classList.toggle('one', nHalves === 1);
+  const halves = bs.querySelectorAll('.half');
   const cellH = Math.round(cell * 1.36);
   const rowH = cellH + 4;
   bs.style.setProperty('--cell', cell + 'px');
@@ -1089,35 +1094,45 @@ function renderMelds() {
   bs.style.setProperty('--rowh', rowH + 'px');
   // Her yarıda: 13 taş biçiminde yuva, satır satır (yuvalar taşlarla birebir hizalı)
   const slotSvg = (w, h, rects) => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='${w}' height='${h}'>${rects}</svg>`)}")`;
-  const r = Math.max(2, Math.round(cell * 0.16));
+  const slotRect = (x, c, ch) => `<rect x='${x + 1.5}' y='1.5' width='${c - 3}' height='${ch - 3}' rx='${Math.max(2, Math.round(c * 0.16))}' fill='rgba(255,255,255,0.025)' stroke='rgba(255,255,255,0.055)'/>`;
   let rects = '';
-  for (let k = 0; k < 13; k++) rects += `<rect x='${k * cell + 1.5}' y='1.5' width='${cell - 3}' height='${cellH - 3}' rx='${r}' fill='rgba(255,255,255,0.025)' stroke='rgba(255,255,255,0.055)'/>`;
+  for (let k = 0; k < 13; k++) rects += slotRect(k * cell, cell, cellH);
   halves.forEach(hf => {
     hf.style.backgroundImage = slotSvg(13 * cell, rowH, rects);
     hf.style.backgroundSize = `${13 * cell}px ${rowH}px`;
     hf.style.backgroundPosition = '12px 0';
     hf.style.backgroundRepeat = 'repeat-y';
   });
-  // Çiftler alanı: aynı kutu boyunda, çift biçiminde (yan yana iki taş) yuvalar ve düzenli sütunlar
-  const pw = 2 * cell + 6, pg = 8;
-  if (!document.body.classList.contains('short')) bc.style.width = (2 * pw + pg + 14) + 'px'; else bc.style.width = '';
-  const bcw = (bc.clientWidth || (2 * pw + pg + 14)) - 10;
-  const pcols = Math.max(1, Math.floor((bcw + pg) / (pw + pg)));
+  // Çiftler alanı: kendi kutu boyuyla (seri tahtasından bağımsız), çift biçiminde (yan yana iki taş) yuvalar.
+  // Kutu, alanın genişliğine ve çift sayısına göre seçilir; çiftin iki taşı hep yan yana kalır.
+  const pg = 8, pad = 16;
+  const pcap = Math.round(tw * 0.75);
+  const short = document.body.classList.contains('short');
+  // Geniş olmayan düzende çift alanı tahtanın en çok ~%30'u kadar (dikey telefonda seriler sıkışmasın)
+  if (!short) bc.style.width = Math.min(2 * (2 * pcap + 4) + pg + pad, Math.round(($('#melds').clientWidth || 1e4) * 0.3)) + 'px'; else bc.style.width = '';
+  const bcw = Math.max(20, (bc.clientWidth || (2 * (2 * pcap + 4) + pg + pad)) - pad);
+  const bch = bc.clientHeight || H;
+  const nPairs = S.melds.filter(m => m.type === 'pair').length;
+  const pcols = Math.max(1, Math.min(2, Math.floor((bcw + pg) / (2 * 10 + 4 + pg))));
+  const pRows = Math.max(1, Math.ceil(nPairs / pcols));
+  const pcell = Math.max(8, Math.min(pcap, Math.floor(((bcw - pg * (pcols - 1)) / pcols - 4) / 2), Math.floor(((bch - 10) / pRows - 4) / 1.36)));
+  const pcellH = Math.round(pcell * 1.36);
+  const pw = 2 * pcell + 4;
   bc.style.setProperty('--pcols', pcols);
   bc.style.setProperty('--pw', pw + 'px');
-  bc.style.setProperty('--cell', cell + 'px');
-  bc.style.setProperty('--cellh', cellH + 'px');
+  bc.style.setProperty('--cell', pcell + 'px');
+  bc.style.setProperty('--cellh', pcellH + 'px');
   let prects = '';
   for (let k = 0; k < pcols; k++) {
-    const x = k * (pw + pg) + 6;
-    prects += `<rect x='${x + 1.5}' y='1.5' width='${cell - 3}' height='${cellH - 3}' rx='${r}' fill='rgba(255,255,255,0.025)' stroke='rgba(255,255,255,0.055)'/>`
-      + `<rect x='${x + cell + 1.5}' y='1.5' width='${cell - 3}' height='${cellH - 3}' rx='${r}' fill='rgba(255,255,255,0.025)' stroke='rgba(255,255,255,0.055)'/>`;
+    const x = k * (pw + pg) + 2;
+    prects += slotRect(x, pcell, pcellH) + slotRect(x + pcell, pcell, pcellH);
   }
-  bc.style.backgroundImage = slotSvg(pcols * (pw + pg), rowH, prects);
-  bc.style.backgroundSize = `${pcols * (pw + pg)}px ${rowH}px`;
-  bc.style.backgroundPosition = '5px 5px';
+  bc.style.backgroundImage = slotSvg(pcols * (pw + pg), pcellH + 4, prects);
+  bc.style.backgroundSize = `${pcols * (pw + pg)}px ${pcellH + 4}px`;
+  bc.style.backgroundPosition = '9px 5px';
   bc.style.backgroundRepeat = 'repeat-y';
-  const cap = Math.max(1, Math.floor((H - 8) / rowH));
+  bc.innerHTML = '';
+  const cap = nHalves === 1 ? Infinity : Math.max(1, Math.floor((H - 8) / rowH));
   const tid = drag ? drag.id : sel;
   let t = tid != null ? tileById(tid) : null;
   // Çevrilmemiş okey seçilince perler parlamaz (okey olduğunu belli etmesin); çevirince okey gibi işlenir
@@ -1845,42 +1860,81 @@ $('#modal').addEventListener('click', e => {
 // ---------- Sohbet ----------
 const chatLog = [];
 $('#quick').innerHTML = QUICK.map(q => `<button type="button" class="small">${q}</button>`).join('');
-$('#quick').onclick = e => { if (e.target.tagName === 'BUTTON') socket.emit('chat', e.target.textContent); };
+// Sohbet penceresi diğer menüler gibi kolay kapanır: ✕, dışarı dokunma, Esc ya da hazır mesaj gönderme
+const chatOpen = () => !$('#chatPanel').classList.contains('hidden');
+function closeChat() { $('#chatPanel').classList.add('hidden'); $('#chatInput').blur(); }
+$('#quick').onclick = e => { if (e.target.tagName === 'BUTTON') { socket.emit('chat', e.target.textContent); closeChat(); } };
 $('#chatForm').onsubmit = e => {
   e.preventDefault();
   const v = $('#chatInput').value.trim();
   if (v) socket.emit('chat', v);
   $('#chatInput').value = '';
 };
-$('#btnChat').onclick = () => {
+$('#btnChat').onclick = e => {
+  e.stopPropagation();
+  $('#menuPop').classList.add('hidden');
   $('#chatPanel').classList.toggle('hidden');
   $('#btnChat').classList.remove('unread');
+  if (chatOpen()) $('#chatLog').scrollTop = 1e9;
 };
+$('#chatClose').onclick = closeChat;
+document.addEventListener('pointerdown', e => {
+  if (chatOpen() && !e.target.closest('#chatPanel, #btnChat, #menuPop')) closeChat();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && chatOpen()) { e.stopImmediatePropagation(); closeChat(); } }, true);
 socket.on('chat', m => {
   chatLog.push(m);
   if (chatLog.length > 50) chatLog.shift();
   $('#chatLog').innerHTML = chatLog.map(x => `<div><b>${esc(x.name)}:</b> ${esc(x.text)}</div>`).join('');
   $('#chatLog').scrollTop = 1e9;
-  if ($('#chatPanel').classList.contains('hidden')) $('#btnChat').classList.add('unread');
+  if (!chatOpen()) $('#btnChat').classList.add('unread');
   showBubble(m.seat, m.text);
 });
 
+// Mesaj balonu yazan oyuncunun yanında çıkar: soldaki oyuncunun sağında, sağdakinin solunda, üsttekinin altında,
+// kendi mesajın ıstakanın üstünde. Balonun oku avatara döner; balon ekrandan taşmaz.
+const bubbles = {};
+function bubbleAnchor(r) {
+  const vis = el => el && el.getClientRects().length && el.getBoundingClientRect().width > 0;
+  if (r === 0) {
+    const chip = $('#meChip .ava');
+    return vis(chip) ? chip : $('#rack');
+  }
+  const pos = $('#pos' + r);
+  const ava = pos && pos.querySelector('.ava');
+  return vis(ava) ? ava : pos;
+}
 function showBubble(seat, text) {
   if (!S || S.lobby) return;
   const r = (seat - S.you + 4) % 4;
-  const target = r === 0 ? $('#meChip') : $('#pos' + r);
+  const target = bubbleAnchor(r);
   if (!target) return;
+  if (bubbles[r]) bubbles[r].remove();
   const rect = target.getBoundingClientRect();
   const b = document.createElement('div');
-  b.className = 'bubble';
   b.textContent = text;
+  // Yön: sağdaki oyuncu → balon solda, soldaki → sağda, üstteki → altta, sen → üstte
+  // Dar (dikey) ekranda yandaki oyuncuların balonları ortada çakışmasın diye avatarın altına konur
+  const dir = r === 2 || ((r === 1 || r === 3) && window.innerWidth < 600) ? 'b' : r === 1 ? 'l' : r === 3 ? 'r' : 't';
+  b.className = 'bubble at-' + dir;
   document.body.appendChild(b);
-  const x = Math.min(window.innerWidth - b.offsetWidth - 8, Math.max(8, rect.left + rect.width / 2 - b.offsetWidth / 2));
-  const y = r === 0 ? rect.top - b.offsetHeight - 8 : rect.bottom + 6;
+  bubbles[r] = b;
+  const bw = b.offsetWidth, bh = b.offsetHeight, vw = window.innerWidth, vh = window.innerHeight, M = 8, G = 10;
+  const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+  let x, y;
+  if (dir === 'l') { x = rect.left - bw - G; y = cy - bh / 2; }
+  else if (dir === 'r') { x = rect.right + G; y = cy - bh / 2; }
+  else if (dir === 'b') { x = cx - bw / 2; y = rect.bottom + G; }
+  else { x = r === 0 && target.id === 'rack' ? rect.left + rect.width * 0.25 - bw / 2 : cx - bw / 2; y = rect.top - bh - G; }
+  x = Math.min(vw - bw - M, Math.max(M, x));
+  y = Math.min(vh - bh - M, Math.max(M, y));
   b.style.left = x + 'px';
-  b.style.top = Math.max(8, y) + 'px';
-  setTimeout(() => b.classList.add('out'), 3800);
-  setTimeout(() => b.remove(), 4300);
+  b.style.top = y + 'px';
+  // Ok avatarı göstersin (balon kenara kaydırıldıysa da)
+  b.style.setProperty('--ax', Math.min(bw - 14, Math.max(14, cx - x)) + 'px');
+  b.style.setProperty('--ay', Math.min(bh - 12, Math.max(12, cy - y)) + 'px');
+  setTimeout(() => b.classList.add('out'), 4500);
+  setTimeout(() => { b.remove(); if (bubbles[r] === b) delete bubbles[r]; }, 5000);
 }
 
 render();

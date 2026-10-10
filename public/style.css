@@ -1009,3 +1009,29 @@ body:not(.short) .turnbar.low i { background: #e2402f; }
 .handscore .lead::before { content: '▲ '; font-size: .8em; }
 /* Istakadaki ters çevrili okeyin altında küçük "OKEY" yazısı (masada yine sade görünür) */
 .rack .tile.joker .okeylbl { position: absolute; left: 0; right: 0; bottom: 14%; font-style: normal; font-size: calc(var(--w) * .2); font-weight: 800; letter-spacing: .04em; color: #c9a75a; text-align: center; }
+
+/* ===== Çiftler: taş boyu çift alanının kendi kutusundan (--cell); çiftin iki taşı hep yan yana ===== */
+#ciftBoard .meld, .short #ciftBoard .meld { flex-wrap: nowrap; width: var(--pw); }
+#ciftBoard .tile.sm, .short #ciftBoard .tile.sm { --w: calc(var(--cell) - 2px); --h: calc(var(--cellh) - 2px); margin: 1px; }
+
+/* ===== Sohbet: masanın üstünde açılan, opak, kolay kapanan pencere ===== */
+.chatpanel {
+  position: fixed; z-index: 26; top: 64px; right: 12px; width: min(440px, calc(100vw - 24px)); margin: 0;
+  padding: 10px; border-radius: 14px; background: rgba(9, 28, 48, .97);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.18), 0 14px 34px rgba(0,0,0,.6);
+}
+.short .chatpanel { top: max(36px, env(safe-area-inset-top)); left: auto; right: max(10px, env(safe-area-inset-right)); width: min(440px, calc(100vw - 20px)); max-height: calc(100vh - 44px); padding: 8px; }
+.chathead { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.chathead b { font-size: 15px; }
+.chathead .chatx { width: 34px; height: 34px; padding: 0; border-radius: 50%; font-size: 16px; font-weight: 700; flex: none; }
+.chatlog, .short .chatlog { max-height: 110px; padding: 6px 8px; border-radius: 8px; background: rgba(0,0,0,.3); font-size: 14px; line-height: 1.35; color: #f4efe2; }
+.short .chatlog { max-height: 72px; font-size: 13px; }
+.chatlog b { color: var(--gold); }
+
+/* ===== Mesaj balonu: yazan oyuncunun avatarının yanında, oku ona dönük ===== */
+.bubble { max-width: min(240px, 42vw); font-size: 15px; line-height: 1.3; word-wrap: break-word; z-index: 45; }
+.bubble::after { content: ''; position: absolute; width: 12px; height: 12px; background: inherit; transform: rotate(45deg); }
+.bubble.at-b::after { top: -5px; left: var(--ax, 50%); margin-left: -6px; }
+.bubble.at-t::after { bottom: -5px; left: var(--ax, 50%); margin-left: -6px; }
+.bubble.at-r::after { left: -5px; top: var(--ay, 50%); margin-top: -6px; }
+.bubble.at-l::after { right: -5px; top: var(--ay, 50%); margin-top: -6px; }
