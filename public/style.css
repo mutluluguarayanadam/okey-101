@@ -1073,3 +1073,49 @@ body:not(.short) .turnbar.low i { background: #e2402f; }
 }
 @keyframes rlturn { 0%, 25% { transform: rotate(0); } 55%, 85% { transform: rotate(-90deg); } 100% { transform: rotate(0); } }
 @media (prefers-reduced-motion: reduce) { .rl-phone { animation: none; transform: rotate(-90deg); } }
+
+/* ===== Android "Dokunarak Ara" kapalı: yazı kutuları dışında yazı seçilemez, basılı tutma menüsü çıkmaz ===== */
+html, body, body * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+input, textarea, select, [contenteditable="true"] { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+img { -webkit-user-drag: none; }
+
+/* ===== Sıradaki botun avatarında ve süre çubuğunda "düşünüyor" ışığı ===== */
+.player.turn .ava.thinking::after {
+  content: ''; position: absolute; inset: -6px; border-radius: 50%; pointer-events: none;
+  background: conic-gradient(from 0deg, transparent 0 70%, rgba(255,255,255,.95) 85%, transparent 100%);
+  -webkit-mask: radial-gradient(circle, transparent 58%, #000 60%);
+          mask: radial-gradient(circle, transparent 58%, #000 60%);
+  animation: thinkspin 1s linear infinite;
+}
+.short .player.turn .ava.thinking::after { inset: -4px; }
+@keyframes thinkspin { to { transform: rotate(1turn); } }
+.mt-bar, .turnbar { position: relative; }
+.mt-bar.thinking::after, .turnbar.thinking::after {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 18%; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.75), transparent);
+  animation: thinkslide 1.1s ease-in-out infinite;
+}
+@keyframes thinkslide { from { transform: translateX(-100%); } to { transform: translateX(560%); } }
+@media (prefers-reduced-motion: reduce) {
+  .player.turn .ava.thinking::after { animation: thinkspin 1s linear infinite !important; }
+  .mt-bar.thinking::after, .turnbar.thinking::after { animation: thinkslide 1.1s ease-in-out infinite !important; }
+}
+
+/* ===== Sıra sende: ıstakanın kenarında soldan sağa akan ışık (nabız ışığına ek; telefonda da fark edilsin) =====
+   Istaka geniş ve alçak olduğu için dönen (konik) ışık kısa kenarlarda takılıyordu; akan ışık üst kenarda hep görünür. */
+body.myturn .rack::before {
+  content: ''; position: absolute; inset: -6px; z-index: 3; pointer-events: none;
+  border-radius: 17px; padding: 4px;
+  background: linear-gradient(90deg, transparent, rgba(255,224,138,.6) 25%, #fffbe8 50%, rgba(255,224,138,.6) 75%, transparent) no-repeat;
+  background-size: 28% 100%; background-position: -40% 0;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  filter: drop-shadow(0 0 5px #ffd66b) drop-shadow(0 0 2px #fff);
+  animation: racksweep 1.8s linear infinite;
+}
+body.myturn.hurry .rack::before {
+  background-image: linear-gradient(90deg, transparent, rgba(255,138,115,.7) 25%, #ffe9e4 50%, rgba(255,138,115,.7) 75%, transparent);
+  filter: drop-shadow(0 0 5px #e2402f) drop-shadow(0 0 2px #fff); animation-duration: .9s;
+}
+@keyframes racksweep { from { background-position: -40% 0; } to { background-position: 140% 0; } }
+@media (prefers-reduced-motion: reduce) { body.myturn .rack::before { animation: racksweep 1.8s linear infinite !important; } }

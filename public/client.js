@@ -983,7 +983,16 @@ function avaHtml(abs) {
   const team = esli() ? ` team t${abs % 2}` : '';
   const bg = p.avatar ? AV_C[p.avatar.c] : AVA[abs];
   const face = p.bot ? '🤖' : p.avatar ? AV_E[p.avatar.e] : esc(initials(p.name));
-  return `<div class="ava${!p.bot && !p.connected ? ' away' : ''}${team}${p.avatar && !p.bot ? ' emo' : ''}" style="--c:${bg}">${face}${crown}</div>`;
+  // Sırası gelen oyuncunun halkası doğru değerle çizilir (önce dolu görünüp sonra düşmesin: titreme yapıyordu);
+  // botun / bot oynatılan oyuncunun sırasında halkada "düşünüyor" ışığı döner
+  let ring = '', cls = '';
+  if (S.turn === abs && S.phase !== 'ended') {
+    const t = timerState();
+    ring = `;--p:${t.p}`;
+    if (t.low) cls += ' low';
+    if ((p.bot || !p.connected) && abs !== S.you) cls += ' thinking';
+  }
+  return `<div class="ava${!p.bot && !p.connected ? ' away' : ''}${team}${p.avatar && !p.bot ? ' emo' : ''}${cls}" style="--c:${bg}${ring}">${face}${crown}</div>`;
 }
 
 function renderPlayer(el, abs) {
@@ -1672,12 +1681,21 @@ window.addEventListener('pointercancel', endDrag);
 let hurryFor = null;
 // Süre halkası (sırası gelenin avatarı) ve üstteki süre çubuğu. Her çizimden hemen sonra da çağrılır;
 // yeni çizilen avatar bir an dolu halka göstermesin.
-function tickTimer() {
-  if (!S || S.lobby) return;
+function timerState() {
   const left = S.deadline ? S.deadline - Date.now() : Infinity;
   const p = S.deadline ? Math.max(0, Math.min(1, left / (S.turnMs || 45000))) : (S.phase === 'ended' ? 0 : 1);
-  const low = S.deadline && left < Math.min(10000, (S.turnMs || 45000) * 0.25);
-  document.querySelectorAll('.turn .ava').forEach(a => { a.style.setProperty('--p', p); a.classList.toggle('low', !!low); });
+  const low = !!S.deadline && left < Math.min(10000, (S.turnMs || 45000) * 0.25);
+  return { left, p: +p.toFixed(4), low };
+}
+function tickTimer() {
+  if (!S || S.lobby) return;
+  const { left, p, low } = timerState();
+  const tp = S.players[S.turn];
+  const thinking = S.phase !== 'ended' && !!tp && (tp.bot || !tp.connected) && S.turn !== S.you;
+  document.querySelectorAll('.turn .ava').forEach(a => { a.style.setProperty('--p', p); a.classList.toggle('low', low); });
+  // Botun sırasında süre çubuğunda da "düşünüyor" ışığı
+  $('.mt-bar').classList.toggle('thinking', thinking);
+  $('#turnbar').classList.toggle('thinking', thinking);
   $('#turnbar').style.setProperty('--p', S.phase === 'ended' ? 0 : p);
   $('#turnbar').classList.toggle('low', !!low);
   $('.mt-bar').style.setProperty('--p', S.phase === 'ended' ? 0 : p);
@@ -2039,3 +2057,14 @@ $('#modalX').onclick = () => {
   scoresOpen = false;
   if (S && !S.lobby) renderModal(); else $('#modal').classList.add('hidden');
 };
+
+// Android Chrome "Dokunarak Ara" (Touch to Search): ekrandaki bir yazıya dokunulunca / basılı tutulunca yazıyı seçip
+// alttan Google araması açıyor. Yazı kutuları dışında yazı seçimi ve tarayıcının basılı tutma menüsü kapalı.
+// (Istakadaki taşın uzun basmayla çevrilmesi kendi pointer zamanlayıcısıyla çalışır, bundan etkilenmez.)
+const typing = el => !!(el && el.closest && el.closest('input, textarea, select, [contenteditable="true"]'));
+document.addEventListener('selectstart', e => { if (!typing(e.target)) e.preventDefault(); });
+document.addEventListener('contextmenu', e => { if (!typing(e.target)) e.preventDefault(); });
+document.addEventListener('selectionchange', () => {
+  const s = document.getSelection();
+  if (s && s.rangeCount && !s.isCollapsed && !typing(document.activeElement)) s.removeAllRanges();
+});
