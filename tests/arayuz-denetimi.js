@@ -1,7 +1,8 @@
 // Arayüz denetimi: sunucuyu ayrı bir portta başlatır, gerçek tarayıcıda (masaüstü 1920x940 ve telefon 844x390)
-// "Hemen oyna" ile bir oyun açar ve son düzeltmeleri kontrol eder.
+// ve iPhone Safari benzetimi (çentik payı, tam ekran yok) için "Hemen oyna" ile bir oyun açar ve son düzeltmeleri kontrol eder.
 // Çalıştırma: npm i --no-save playwright && npx playwright install chromium && npm run test:ui
 const { spawn } = require('child_process');
+const fs = require('fs');
 const path = require('path');
 let chromium;
 try { ({ chromium } = require('playwright')); } catch {
@@ -23,13 +24,32 @@ async function startServer() {
   return srv;
 }
 
-async function run(browser, label, vp, mobile) {
+const IOS_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
+
+async function run(browser, label, vp, mobile, ios) {
   console.log(`\n--- ${label} (${vp.width}x${vp.height}) ---`);
-  const ctx = await browser.newContext({ viewport: vp, hasTouch: mobile, isMobile: mobile });
+  const ctx = await browser.newContext({ viewport: vp, hasTouch: mobile, isMobile: mobile, userAgent: ios ? IOS_UA : undefined });
   const p = await ctx.newPage();
   const errs = [];
   p.on('pageerror', e => errs.push(e.message));
+  if (ios) {
+    // iPhone yatay: çentik payı solda/sağda 47px, ana ekran çizgisi 21px; Safari tam ekran vermez
+    const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'style.css'), 'utf8')
+      .replace(/env\(safe-area-inset-(top|right|bottom|left)\)/g, (_, k) => ({ top: 0, right: 47, bottom: 21, left: 47 })[k] + 'px');
+    await p.route('**/style.css', r => r.fulfill({ body: css, contentType: 'text/css' }));
+    await p.addInitScript(() => {
+      Object.defineProperty(Document.prototype, 'fullscreenEnabled', { get: () => false });
+      Object.defineProperty(Document.prototype, 'webkitFullscreenEnabled', { get: () => false });
+    });
+  }
   await p.goto(URL);
+  if (ios) {
+    const tip = await p.evaluate(() => { const t = document.querySelector('#iosTip'); return !!t && t.getBoundingClientRect().bottom <= innerHeight + 200; });
+    check('Girişte "Ana Ekrana Ekle" ipucu', tip);
+    await p.click('#iosTip');
+    check('İpucu tam ekran yolunu anlatıyor', await p.evaluate(() => /Ana Ekrana Ekle/.test(document.querySelector('#modalBody').textContent) && !document.querySelector('#modal').classList.contains('hidden')));
+    await p.click('#iosOk');
+  }
   await p.fill('#name', 'Denetim');
   await p.click('#btnQuick');
   await p.waitForSelector('#game:not(.hidden)', { timeout: 10000 });
@@ -89,6 +109,18 @@ async function run(browser, label, vp, mobile) {
   for (let i = 1; i < mono.length; i++) if (mono[i] && mono[i - 1] && mono[i][0] === mono[i - 1][0] && mono[i][1] > mono[i - 1][1] + 0.05) jumps++;
   check('Halka titremiyor', jumps === 0, jumps + ' sıçrama');
 
+  if (ios) {
+    const fit = await p.evaluate(() => {
+      const rl = document.querySelector('#rackline').getBoundingClientRect(), rk = document.querySelector('#rack').getBoundingClientRect();
+      return { l: rl.left, r: innerWidth - rl.right, rk: rk.right <= rl.right + 1 && rk.left >= rl.left - 1 };
+    });
+    check('Istaka çentik payının içinde ve sığıyor', fit.l >= 46 && fit.r >= 46 && fit.rk, `sol ${Math.round(fit.l)} sağ ${Math.round(fit.r)}`);
+    await p.evaluate(() => document.querySelector('#btnFull').click());
+    check('Oyunda ⛶: iPhone tam ekran yardımı açılır', await p.evaluate(() => /iPhone'da tam ekran/.test(document.querySelector('#modalBody').textContent) && !document.querySelector('#modal').classList.contains('hidden')));
+    await p.waitForTimeout(400);
+    check('Yardım oyun güncellemesiyle kapanmaz', await p.evaluate(() => !document.querySelector('#modal').classList.contains('hidden')));
+    await p.click('#iosOk');
+  }
   const overflow = await p.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
   check('Sayfa yana taşmıyor', !overflow);
   check('JavaScript hatası yok', errs.length === 0, errs.join(' | '));
@@ -101,6 +133,7 @@ async function run(browser, label, vp, mobile) {
   try {
     await run(browser, 'Masaüstü', { width: 1920, height: 940 }, false);
     await run(browser, 'Telefon', { width: 844, height: 390 }, true);
+    await run(browser, 'iPhone Safari', { width: 750, height: 340 }, true, true);
   } catch (e) { console.error(e); results.push(false); }
   await browser.close();
   srv.kill();

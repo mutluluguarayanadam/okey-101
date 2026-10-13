@@ -2,10 +2,12 @@
 <html lang="tr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#1a120b">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="101 Okey">
+  <meta name="format-detection" content="telephone=no">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon-192.png">
@@ -119,6 +121,7 @@
 
   <div id="modal" class="modal hidden"><button id="modalX" class="modalx" aria-label="Kapat" title="Kapat">✕</button><div class="panel" id="modalBody"></div></div>
   <div id="toast" class="toast"></div>
+  <div id="safeProbe" class="safeprobe" aria-hidden="true"></div>
   <div id="turnFlash" class="turnflash">Sıra sende!</div>
   <canvas id="confetti" class="confetti"></canvas>
   <div id="netbar" class="netbar hidden"></div>

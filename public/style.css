@@ -1119,3 +1119,31 @@ body.myturn.hurry .rack::before {
 }
 @keyframes racksweep { from { background-position: -40% 0; } to { background-position: 140% 0; } }
 @media (prefers-reduced-motion: reduce) { body.myturn .rack::before { animation: racksweep 1.8s linear infinite !important; } }
+
+/* ===================== iPhone / iPad ===================== */
+/* Çentik ve ana ekran çizgisi payını JS'e bildiren görünmez ölçü kutusu (taş boyu kalan alana göre hesaplanır) */
+.safeprobe {
+  position: fixed; left: 0; top: 0; width: 0; height: 0; visibility: hidden; pointer-events: none;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) calc(env(safe-area-inset-bottom) * .5) env(safe-area-inset-left);
+}
+/* Ana ekran çizgisi ince bir katman: alttaki payın yarısı yeter, ıstaka biraz daha büyük olur */
+.short .dock { padding-bottom: max(3px, calc(env(safe-area-inset-bottom) * .5)); }
+/* Oyun ekranında çift dokunma yakınlaştırması yok (ıstakadaki taşlar zaten touch-action: none) */
+#game, #game *, .modal, .modal * { touch-action: manipulation; }
+#game .rack .tile, #game #pile, #game #corner3 { touch-action: none; }
+/* iOS lastik bant kaydırması ve yazı boyutu büyütmesi düzeni oynatmasın */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body.ingame { overscroll-behavior: none; }
+/* Safari'de "Ana Ekrana Ekle" ipucu (girişte) ve yardım penceresi */
+.iostip {
+  display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 12px; padding: 9px 12px;
+  font-size: 14px; text-align: left; background: rgba(5, 18, 32, .55); color: #e6f0fa; box-shadow: inset 0 0 0 1px rgba(255,255,255,.18);
+}
+.iostip b { color: var(--gold); }
+.iossteps { margin: 10px 0; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; }
+.iosshare {
+  display: inline-block; width: 16px; height: 18px; margin-left: 4px; vertical-align: -3px; position: relative;
+  border: 2px solid currentColor; border-top: 0; border-radius: 2px;
+}
+.iosshare::before { content: ''; position: absolute; left: 50%; top: -9px; width: 2px; height: 14px; margin-left: -1px; background: currentColor; }
+.iosshare::after { content: ''; position: absolute; left: 50%; top: -9px; width: 6px; height: 6px; margin-left: -4px; border-left: 2px solid currentColor; border-top: 2px solid currentColor; transform: rotate(45deg); }
