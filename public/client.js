@@ -129,33 +129,79 @@ $('#btnTrack').onclick = () => S && !S.lobby && openDiscards(S.you);
 $('#btnScores').onclick = () => { scoresOpen = true; renderModal(); };
 $('#btnSettings').onclick = () => openSettings();
 const touch = matchMedia('(pointer: coarse)').matches;
-// Telefonda oyun yatay oynanır: tam ekrana geçip ekranı yatayda kilitle (Android). iPhone kilitlemeye izin
-// vermez; orada dikey tutulunca "yan çevir" ekranı çıkar.
-async function goLandscape() {
+// iPhone / iPad (iPadOS kendini Mac olarak tanıtır) ve ana ekrandan açılmış uygulama (Safari çubukları yok)
+const IOS = /iP(hone|od|ad)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const standalone = () => !!navigator.standalone || matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches;
+// Tam ekran: standart API, yoksa Safari'nin (iPad) -webkit- sürümü. iPhone Safari web sayfalarına tam ekran vermez.
+const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement;
+const canFs = () => !!((document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen) &&
+  (document.fullscreenEnabled || document.webkitFullscreenEnabled));
+function enterFs() {
+  const d = document.documentElement;
   try {
-    if (!document.fullscreenElement && document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
-    await screen.orientation?.lock?.('landscape');
-  } catch (e) { /* desteklenmiyor: kullanıcı telefonu kendisi çevirir */ }
+    const r = d.requestFullscreen ? d.requestFullscreen({ navigationUI: 'hide' }) : d.webkitRequestFullscreen?.();
+    return Promise.resolve(r).then(() => screen.orientation?.lock?.('landscape').catch(() => {}));
+  } catch (e) { return Promise.reject(e); }
+}
+function exitFs() {
+  try { return Promise.resolve(document.exitFullscreen ? document.exitFullscreen() : document.webkitExitFullscreen?.()); } catch (e) { return Promise.resolve(); }
+}
+// Telefonda oyun yatay oynanır: tam ekrana geçip ekranı yatayda kilitle (Android). iPhone ikisine de izin
+// vermez; orada dikey tutulunca "yan çevir" ekranı çıkar, tam ekran için "Ana Ekrana Ekle" yolu gösterilir.
+async function goLandscape() {
+  try { if (!fsEl() && canFs()) await enterFs(); } catch (e) { /* desteklenmiyor: kullanıcı telefonu kendisi çevirir */ }
 }
 $('#btnRotate').onclick = goLandscape;
 $('#rotateLock').addEventListener('pointerup', goLandscape);
 let fsTried = false;
 $('#game').addEventListener('pointerdown', () => {
-  if (!touch || fsTried || document.fullscreenElement || !document.documentElement.requestFullscreen) return;
+  if (!touch || fsTried || fsEl() || !canFs() || standalone()) return;
   fsTried = true;
-  document.documentElement.requestFullscreen()
-    .then(() => screen.orientation?.lock?.('landscape').catch(() => {}))
-    .catch(() => {});
+  enterFs().catch(() => {});
 }, { capture: true });
+// iPhone'da tam ekran: Safari'de Paylaş > Ana Ekrana Ekle; oradan açılınca adres ve sekme çubukları olmaz
+function iosFullHelp() {
+  openPanel(`<h2>iPhone'da tam ekran</h2>
+    <div class="help">
+      <p>iPhone'da Safari, web sayfalarının tam ekran olmasına izin vermiyor. Oyunu <b>ana ekrana eklersen</b>
+      uygulama gibi açılır: adres çubuğu ve alt çubuk kalkar, taşlar ve tahta büyür.</p>
+      <ol class="iossteps">
+        <li>Safari'nin altındaki (yatayda üstündeki) <b>Paylaş</b> düğmesine dokun <span class="iosshare" aria-hidden="true"></span></li>
+        <li>Listeyi kaydırıp <b>Ana Ekrana Ekle</b>'yi seç</li>
+        <li><b>Ekle</b>'ye dokun, sonra oyunu ana ekrandaki <b>101 Okey</b> simgesinden aç</li>
+      </ol>
+      <p class="muted">Chrome kullanıyorsan da aynı: Paylaş menüsünde "Ana Ekrana Ekle".</p>
+    </div>
+    <button id="iosOk" class="primary wide">Tamam</button>`, () => { $('#iosOk').onclick = closePanel; });
+}
 $('#btnFull').onclick = async () => {
-  try {
-    if (document.fullscreenElement) await document.exitFullscreen();
-    else {
-      await document.documentElement.requestFullscreen();
-      await screen.orientation?.lock?.('landscape');
-    }
-  } catch (e) { /* bazı tarayıcılar desteklemez */ }
+  if (IOS && !canFs() && !standalone()) { iosFullHelp(); return; }
+  try { if (fsEl()) await exitFs(); else await enterFs(); } catch (e) { /* bazı tarayıcılar desteklemez */ }
 };
+// iPhone + Safari (ana ekrandan açılmamış): girişte bir kez tam ekran ipucu
+if (IOS && !standalone()) {
+  document.body.classList.add('ios-browser');
+  const tip = document.createElement('button');
+  tip.id = 'iosTip'; tip.type = 'button'; tip.className = 'iostip';
+  tip.innerHTML = '📲 <span>Tam ekran oynamak için <b>Ana Ekrana Ekle</b></span>';
+  tip.onclick = iosFullHelp;
+  $('#btnQuick').after(tip);
+}
+if (IOS) document.body.classList.add('ios');
+if (standalone()) document.body.classList.add('standalone');
+// iOS: iki parmakla yakınlaştırma düzeni bozmasın (çift dokunma yakınlaştırması CSS'te touch-action ile kapalı)
+['gesturestart', 'gesturechange'].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive: false }));
+// iOS sesi ancak bir dokunuşla açar: ilk dokunuşta ses motorunu uyandır
+function unlockAudio() {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    const b = actx.createBuffer(1, 1, 22050), src = actx.createBufferSource();
+    src.buffer = b; src.connect(actx.destination); src.start(0);
+  } catch (e) { /* ses yok */ }
+  if (actx && actx.state === 'running') ['touchend', 'pointerup', 'keydown'].forEach(t => document.removeEventListener(t, unlockAudio, true));
+}
+['touchend', 'pointerup', 'keydown'].forEach(t => document.addEventListener(t, unlockAudio, true));
 $('#btnTipClose').onclick = () => { $('#rotateTip').classList.add('closed'); localStorage.setItem('okey_tip', '1'); };
 if (localStorage.getItem('okey_tip')) $('#rotateTip').classList.add('closed');
 
@@ -189,7 +235,7 @@ function goLobby(msg) {
   discardsOpen = null;
   leaving = false;
   $('#modal').classList.add('hidden');
-  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  if (fsEl()) exitFs().catch(() => {});
   render();
   if (msg && wasIn) toast(msg);
 }
@@ -237,7 +283,7 @@ let actx;
 function beep(notes, vol = 0.18, type = 'triangle') {
   if (!prefs.sound) return;
   try {
-    actx = actx || new AudioContext();
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
     const t = actx.currentTime, len = notes.length * 0.09 + 0.2;
     const o = actx.createOscillator(), g = actx.createGain();
     o.type = type;
@@ -272,7 +318,7 @@ function blinkTitle() {
 function clack(vol = 0.08) {
   if (!prefs.sound) return;
   try {
-    actx = actx || new AudioContext();
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
     const t = actx.currentTime, o = actx.createOscillator(), g = actx.createGain();
     o.type = 'triangle';
     o.frequency.setValueAtTime(420, t);
@@ -352,6 +398,12 @@ document.addEventListener('pointerdown', e => {
 // Yatay ekran: telefon için kurulan Okey Plus düzeni kullanılır. Geniş ekranlarda (masaüstü, tablet)
 // aynı düzen 1100 piksel genişliğinde tasarlanıp ekrana orantılı olarak büyütülür (CSS zoom);
 // böylece oranlar fotoğraflardaki gibi kalır, hiçbir öğe ekranı kaplamaz.
+function safeArea() {
+  const p = $('#safeProbe');
+  if (!p) return { t: 0, r: 0, b: 0, l: 0 };
+  const cs = getComputedStyle(p), n = k => parseFloat(cs[k]) || 0;
+  return { t: n('paddingTop'), r: n('paddingRight'), b: n('paddingBottom'), l: n('paddingLeft') };
+}
 let ZOOM = 1;
 const DESIGN_W = 1100;
 function fitLayout() {
@@ -363,8 +415,11 @@ function fitLayout() {
   const g = $('#game');
   if (g) g.style.zoom = ZOOM === 1 ? '' : ZOOM;
   document.body.classList.toggle('zoomed', ZOOM > 1);
-  const vw = rvw / ZOOM, vh = rvh / ZOOM;
-  const short = land && vh < 720;
+  // iPhone yatayda çentik / yuvarlak köşe (sol-sağ) ve ana ekran çizgisi (alt) payı: düzen bu payları kenarda boş bırakır,
+  // taş boyu da kalan alana göre hesaplanmalı (yoksa ıstaka sığmaz, tahta sıkışır)
+  const sa = safeArea();
+  const vw = (rvw - sa.l - sa.r) / ZOOM, vh = (rvh - sa.t - sa.b) / ZOOM;
+  const short = land && rvh / ZOOM < 720;
   document.body.classList.toggle('short', short);
   placeControls(short);
   const gap = vw < 700 ? 2 : 3;
@@ -388,7 +443,10 @@ function fitLayout() {
   root.setProperty('--cw', (short ? Math.max(22, tw * 0.9) : tw).toFixed(1) + 'px');
 }
 window.addEventListener('resize', () => { if (S && !S.lobby) { fitLayout(); renderGame(); } });
-window.addEventListener('orientationchange', () => setTimeout(fitLayout, 250));
+// iOS döndürmeden sonra ölçüleri bir süre eski verir; birkaç kez yeniden ölç. Safari çubukları açılıp kapanınca da.
+const refit = () => { if (S && !S.lobby) { fitLayout(); renderGame(); } };
+window.addEventListener('orientationchange', () => [250, 600, 1000].forEach(t => setTimeout(refit, t)));
+window.visualViewport?.addEventListener('resize', () => { clearTimeout(refit.h); refit.h = setTimeout(refit, 120); });
 
 function render() {
   if (!S) { show('lobby'); return; }
