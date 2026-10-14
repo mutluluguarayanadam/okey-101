@@ -1020,7 +1020,7 @@ body:not(.short) .turnbar.low i { background: #e2402f; }
   padding: 10px; border-radius: 14px; background: rgba(9, 28, 48, .97);
   box-shadow: 0 0 0 1px rgba(255,255,255,.18), 0 14px 34px rgba(0,0,0,.6);
 }
-.short .chatpanel { top: max(36px, env(safe-area-inset-top)); left: auto; right: max(10px, env(safe-area-inset-right)); width: min(440px, calc(100vw - 20px)); max-height: calc(100vh - 44px); padding: 8px; }
+.short .chatpanel { top: max(36px, env(safe-area-inset-top)); left: auto; right: max(10px, env(safe-area-inset-right)); width: min(440px, calc(100vw - 20px)); max-height: calc(100vh - 44px); max-height: calc(100dvh - 44px); padding: 8px; }
 .chathead { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .chathead b { font-size: 15px; }
 .chathead .chatx { width: 34px; height: 34px; padding: 0; border-radius: 50%; font-size: 16px; font-weight: 700; flex: none; }
