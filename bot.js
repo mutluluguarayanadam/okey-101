@@ -255,6 +255,7 @@ const X = {
   lookC: +(process.env.X_LOOKC ?? 3),
   early: +(process.env.X_EARLY ?? 0),      // erken oyunda (yığın >= bu sayı) kimse açmamışken açmayı beklet (0 = kapalı)
   hold1: +(process.env.X_HOLD1 ?? 0),      // açtığı turda sadece açılışı indir, kalan perleri sonraki turda (ölçümde zarar, kapalı)
+  pairAll: +(process.env.X_PAIRALL ?? 0), // çift açılabiliyorsa hemen aç (worthIt koşulunu atla)
   keepJ: +(process.env.X_KEEPJ ?? 1),      // okeyi sakla: okeysiz açabiliyorsan öyle aç, okeyi risk artınca ya da bitişte kullan
 };
 
@@ -334,7 +335,7 @@ function tryOpen(g, seat) {
   const maxPairs = Math.floor((me.hand.length - 1) / 2);
   const realPairs = pairs.filter(p => !p.some(t => R.isJoker(t, ok))).length;
   const worthIt = realPairs >= bar.cift + 1 || score < bar.per * 0.6 || g.pile.length <= 8;
-  if (pairs.length >= bar.cift && worthIt) {
+  if (pairs.length >= bar.cift && (worthIt || X.pairAll)) {
     const use = pairs.slice(0, maxPairs);
     if (use.length >= bar.cift && g.open(seat, use.map(p => p.map(t => t.id))).ok) return true;
   }
