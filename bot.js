@@ -223,6 +223,11 @@ function draw(g, seat) {
     if (me.opened) {
       let want = R.isJoker(top, ok) || g.melds.some(m => m.type !== 'pair' && R.attachInfo(m, top, ok));
       if (!want && me.openType === 'per') want = solve(me.hand.concat([top]), ok, 8000).score > solve(me.hand, ok, 8000).score;
+      if (!want && X.tilesPick && me.openType === 'per') {
+        // Bitirmek için: taş bir pere girip elde kalan taş sayısını azaltıyorsa al
+        const cnt = h => solve(h, ok, 8000, 'tiles').melds.reduce((a, m) => a + m.length, 0);
+        want = cnt(me.hand.concat([top])) > cnt(me.hand) + 0;
+      }
       if (!want && (me.openType === 'cift' || g.seats.some(x => x.openType === 'cift'))) {
         want = me.hand.some(t => !R.isJoker(t, ok) && R.analyzePair([t, top], ok));
       }
@@ -234,6 +239,16 @@ function draw(g, seat) {
       const used = sol.melds.reduce((a, m) => a + m.length, 0);
       if (sol.score >= g.barrier(seat).per && used < hand.length && sol.melds.some(m => m.includes(top))) {
         if (g.drawDiscard(seat).ok) return;
+      }
+      if (X.pairPick && !R.isJoker(top, ok)) {
+        // Çiftle açabiliyorsak (taş bir çifti tamamlıyor ve barajı geçiriyoruz) yandan al
+        const need = g.barrier(seat).cift;
+        const before = findPairs(me.hand, ok).length;
+        const prs = findPairs(hand, ok);
+        const inPair = prs.some(p => p.includes(top));
+        if (inPair && prs.length >= need && before < need && Math.floor((hand.length - 1) / 2) >= need) {
+          if (g.drawDiscard(seat).ok) return;
+        }
       }
     }
   }
@@ -255,6 +270,9 @@ const X = {
   lookC: +(process.env.X_LOOKC ?? 3),
   early: +(process.env.X_EARLY ?? 0),      // erken oyunda (yığın >= bu sayı) kimse açmamışken açmayı beklet (0 = kapalı)
   hold1: +(process.env.X_HOLD1 ?? 0),      // açtığı turda sadece açılışı indir, kalan perleri sonraki turda (ölçümde zarar, kapalı)
+  tilesPick: +(process.env.X_TILESPICK ?? 0), // açtıktan sonra yandan, elde kalan taşı azaltan taşı al
+  pairPick: +(process.env.X_PAIRPICK ?? 0),   // açmadan önce yandan, çiftle açmayı mümkün kılan taşı al
+  pairAll: +(process.env.X_PAIRALL ?? 0), // çift açılabiliyorsa hemen aç (worthIt koşulunu atla)
   keepJ: +(process.env.X_KEEPJ ?? 1),      // okeyi sakla: okeysiz açabiliyorsan öyle aç, okeyi risk artınca ya da bitişte kullan
 };
 
@@ -334,7 +352,9 @@ function tryOpen(g, seat) {
   const maxPairs = Math.floor((me.hand.length - 1) / 2);
   const realPairs = pairs.filter(p => !p.some(t => R.isJoker(t, ok))).length;
   const worthIt = realPairs >= bar.cift + 1 || score < bar.per * 0.6 || g.pile.length <= 8;
-  if (pairs.length >= bar.cift && worthIt) {
+  const forced = g.mustOpenWith != null;
+  if (pairs.length >= bar.cift && (worthIt || X.pairAll || forced)) {
+    if (forced) pairs.sort((a, b) => (b.some(t => t.id === g.mustOpenWith) ? 1 : 0) - (a.some(t => t.id === g.mustOpenWith) ? 1 : 0));
     const use = pairs.slice(0, maxPairs);
     if (use.length >= bar.cift && g.open(seat, use.map(p => p.map(t => t.id))).ok) return true;
   }
