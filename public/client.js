@@ -1392,10 +1392,10 @@ function renderActions() {
     os.textContent = nm ? `Seri indir (${nm})` : 'Seri indir';
     oc.textContent = np ? `Çift indir (${np})` : 'Çift indir';
     os.classList.toggle('hidden', m.openType === 'cift');
-    oc.classList.toggle('hidden', m.openType === 'per' && !ciftArea);
+    oc.classList.remove('hidden'); // seri açtıktan sonra da hep görünür; indirilemiyorsa dokununca nedeni söylenir
   }
   os.disabled = !playing() || !sReady;
-  oc.disabled = !playing() || !cReady;
+  oc.disabled = !playing() || (!m.opened && !cReady);
   os.classList.toggle('ready', playing() && sReady);
   oc.classList.toggle('ready', playing() && cReady);
   btn('seri').disabled = btn('cift').disabled = S.phase === 'ended';
@@ -1504,6 +1504,12 @@ function layable(ev) {
 // Aç: ıstaka barajı geçecek gibi dizili değilse önce Seri/Çift diz yapılır, sonra önizleme açılır
 function openWith(mode) {
   const m = me(), ev = evalRack();
+  if (m.opened && mode === 'cift') {
+    const ciftArea = S.players.some(p => p.openType === 'cift');
+    if (m.openType !== 'cift' && !ciftArea) return toast('Masada çift açan olmadığı için çift indiremezsin');
+    if (!ev.pairs.length) return toast('Istakada indirilecek çift yok');
+  }
+  if (m.opened && mode === 'seri' && !ev.melds.length) return toast('Istakada indirilecek per yok (aralarına boşluk bırakarak diz)');
   const enough = m.opened || (mode === 'seri' ? ev.score >= S.barrier.per : ev.pairs.length >= S.barrier.cift);
   if (enough) doOpen(mode);
   else autoArrange(mode, false, () => doOpen(mode));

@@ -7,7 +7,7 @@ const Bot = require('./bot');
 
 const PORT = process.env.PORT || 3000;
 const BOT_MS = +(process.env.BOT_MS || 1100);   // bot düşünme süresi
-const AWAY_MS = +(process.env.AWAY_MS || 3000); // bağlantısı kopan oyuncunun yerine bot oynamadan önce bekleme
+const AWAY_MS = +(process.env.AWAY_MS || 15000); // bağlantısı kopan oyuncunun yerine bot oynamadan önce bekleme (iPhone uygulama değişimi, ekran kilidi için tolerans)
 const ROOM_TTL = 15 * 60 * 1000;
 
 const app = express();
