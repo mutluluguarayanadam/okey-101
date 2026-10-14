@@ -270,7 +270,7 @@ const X = {
   lookC: +(process.env.X_LOOKC ?? 3),
   early: +(process.env.X_EARLY ?? 0),      // erken oyunda (yığın >= bu sayı) kimse açmamışken açmayı beklet (0 = kapalı)
   hold1: +(process.env.X_HOLD1 ?? 0),      // açtığı turda sadece açılışı indir, kalan perleri sonraki turda (ölçümde zarar, kapalı)
-  tilesPick: +(process.env.X_TILESPICK ?? 1), // açtıktan sonra yandan, elde kalan taşı azaltan taşı al
+  tilesPick: +(process.env.X_TILESPICK ?? 0), // açtıktan sonra yandan, elde kalan taşı azaltan taşı al
   pairPick: +(process.env.X_PAIRPICK ?? 0),   // açmadan önce yandan, çiftle açmayı mümkün kılan taşı al
   pairAll: +(process.env.X_PAIRALL ?? 0), // çift açılabiliyorsa hemen aç (worthIt koşulunu atla)
   keepJ: +(process.env.X_KEEPJ ?? 1),      // okeyi sakla: okeysiz açabiliyorsan öyle aç, okeyi risk artınca ya da bitişte kullan
