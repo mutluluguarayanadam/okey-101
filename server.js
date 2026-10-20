@@ -4,6 +4,7 @@ const express = require('express');
 const { Server } = require('socket.io');
 const { Game } = require('./game');
 const Bot = require('./bot');
+const { finishPlan, takeAdvice } = require('./plan');
 
 const PORT = process.env.PORT || 3000;
 const BOT_MS = +(process.env.BOT_MS || 1100);   // bot düşünme süresi
@@ -372,7 +373,26 @@ io.on('connection', socket => {
     const room = roomOf(socket);
     if (!room || !room.game || typeof cb !== 'function') return;
     const flipped = Array.isArray(a && a.flipped) ? a.flipped.map(Number).filter(Number.isInteger).slice(0, 30) : [];
-    cb(Bot.suggest(room.game, socket.data.seat, flipped));
+    if (a && a.planOnly) { // sadece bitiş planı (açmış oyuncu için hafif hesap)
+      try { return cb({ plan: finishPlan(room.game, socket.data.seat, flipped) }); } catch (e) { console.error('plan hesabı:', e); return cb({}); }
+    }
+    const res = Bot.suggest(room.game, socket.data.seat, flipped);
+    try {
+      const path = a && (a.path === 'seri' || a.path === 'cift') ? a.path : undefined;
+      res.plan = finishPlan(room.game, socket.data.seat, flipped, path);
+    } catch (e) { console.error('plan hesabı:', e); }
+    cb(res);
+  });
+
+  // Soldaki taşı almak bitmeye katkı sağlıyor mu? (sadece çekme aşamasında, sırası gelen oyuncu)
+  socket.on('advice', (a, cb) => {
+    if (typeof a === 'function') { cb = a; a = {}; }
+    const room = roomOf(socket);
+    if (!room || !room.game || typeof cb !== 'function') return;
+    const g = room.game, seat = socket.data.seat;
+    if (g.turn !== seat || g.phase !== 'draw') return cb(null);
+    const flipped = Array.isArray(a && a.flipped) ? a.flipped.map(Number).filter(Number.isInteger).slice(0, 30) : undefined;
+    try { cb(takeAdvice(g, seat, flipped)); } catch (e) { console.error('öneri hesabı:', e); cb(null); }
   });
 
   // İsteyerek masadan çıkış (Çık / Ana menü)
