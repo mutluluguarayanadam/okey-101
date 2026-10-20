@@ -749,18 +749,23 @@ function autoArrange(mode, quiet, done) {
 
 // Elin gücü: ıstakadaki dizilişten bağımsız, eldeki tüm taşlarla kurulabilecek en iyi seri puanı ve çift sayısı
 // (Seri diz / Çift diz'in kuracağı dizilimle aynı hesap). El değişince sunucudan bir kez istenir.
-let pot = { key: null, score: 0, pairs: 0 };
+let pot = { key: null, score: 0, pairs: 0, plan: null };
 let potPending = null;
-function potKey() { return S.handIndex + '|' + S.hand.map(t => t.id).sort((a, b) => a - b).join(',') + '|' + [...flipped].sort((a, b) => a - b).join(','); }
+function potKey() {
+  const m = S.players && S.players[S.you];
+  return S.handIndex + '|' + S.hand.map(t => t.id).sort((a, b) => a - b).join(',') + '|' + [...flipped].sort((a, b) => a - b).join(',') +
+    '|' + (m && m.opened ? 'o' + S.melds.map(x => x.id + ':' + x.tiles.length).join(',') : 'c');
+}
 function refreshPotential() {
-  if (!S || S.lobby || !S.hand || me().opened) return;
+  if (!S || S.lobby || !S.hand) return;
+  const opened = me().opened;
   const k = potKey();
   if (k === pot.key || k === potPending) return;
   potPending = k;
-  socket.emit('suggest', { flipped: [...flipped] }, res => {
+  socket.emit('suggest', { flipped: [...flipped], planOnly: opened }, res => {
     if (potPending === k) potPending = null;
     if (!S || S.lobby || !res) return;
-    pot = { key: k, score: res.score || 0, pairs: (res.pairs || []).length };
+    pot = { key: k, score: res.score || 0, pairs: (res.pairs || []).length, plan: res.plan || null };
     if (potKey() === k) { renderMe(); renderActions(); }
   });
 }
@@ -1288,6 +1293,13 @@ function meldEl(m, t, canNow) {
 }
 const choiceOf = o => (o.kind === 'swap' ? { kind: 'swap' } : { kind: 'add', side: o.side });
 
+// Bitiş planı özeti (sadece sıra sendeyken): önerilen yol ve bitmeye kalan taş
+function planBadge() {
+  const pl = pot.key === potKey() ? pot.plan : null;
+  if (!pl || !playing() || (!pl.path && pl.phase !== 'opened')) return '';
+  const yol = pl.phase === 'opened' ? '' : (pl.path === 'seri' ? 'Seri ' : 'Çift ') + '· ';
+  return `<span class="lead" title="Bu eldeki taşlarla açma, indirme ve işleme planı">${yol}${pl.canFinish ? 'Bitirebilirsin' : `<b>${pl.toGo}</b> taş kaldı`}</span>`;
+}
 function renderMe() {
   const m = me();
   const chip = $('#meChip');
@@ -1306,12 +1318,12 @@ function renderMe() {
     const lead = sOk !== cOk ? (sOk ? 's' : 'c') : (hp.score / b.per >= hp.pairs / b.cift ? 's' : 'c');
     hs.classList.toggle('ready', sOk || cOk);
     hs.title = 'Istakadaki dizilişten bağımsız: elindeki taşlarla kurulabilecek en iyi seri puanı ve çift sayısı. ▲ gitmen gereken yön.';
-    hs.innerHTML = `<span class="${lead === 's' ? 'lead' : ''}">Seri <b class="${sOk ? 'ok' : ''}">${hp.score}</b>/${b.per}</span><span class="${lead === 'c' ? 'lead' : ''}">Çift <b class="${cOk ? 'ok' : ''}">${hp.pairs}</b>/${b.cift}</span>`;
+    hs.innerHTML = `<span class="${lead === 's' ? 'lead' : ''}">Seri <b class="${sOk ? 'ok' : ''}">${hp.score}</b>/${b.per}</span><span class="${lead === 'c' ? 'lead' : ''}">Çift <b class="${cOk ? 'ok' : ''}">${hp.pairs}</b>/${b.cift}</span>` + planBadge();
   } else {
     // El sonunda yazılacak gibi: elde kalan her okey 101
     const left = S.hand.reduce((s, t) => s + Rules.tilePoints(t, S.okey), 0);
     hs.classList.remove('ready');
-    hs.innerHTML = `<span>Elde kalan <b>${left}</b></span>`;
+    hs.innerHTML = `<span>Elde kalan <b>${left}</b></span>` + planBadge();
   }
 }
 

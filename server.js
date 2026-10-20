@@ -373,6 +373,9 @@ io.on('connection', socket => {
     const room = roomOf(socket);
     if (!room || !room.game || typeof cb !== 'function') return;
     const flipped = Array.isArray(a && a.flipped) ? a.flipped.map(Number).filter(Number.isInteger).slice(0, 30) : [];
+    if (a && a.planOnly) { // sadece bitiş planı (açmış oyuncu için hafif hesap)
+      try { return cb({ plan: finishPlan(room.game, socket.data.seat, flipped) }); } catch (e) { console.error('plan hesabı:', e); return cb({}); }
+    }
     const res = Bot.suggest(room.game, socket.data.seat, flipped);
     try {
       const path = a && (a.path === 'seri' || a.path === 'cift') ? a.path : undefined;
