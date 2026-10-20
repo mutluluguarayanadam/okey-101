@@ -661,15 +661,26 @@ function syncHand() {
 }
 
 function autoArrange(mode, quiet, done) {
-  socket.emit('suggest', { flipped: [...flipped] }, res => {
+  socket.emit('suggest', { flipped: [...flipped], path: mode }, res => {
     if (!S || S.lobby) return;
     const inHand = id => !!tileById(id);
-    let groups;
-    if (mode === 'seri') {
-      groups = res.melds.filter(g => g.every(inHand)).map(g => {
-        const a = Rules.analyzeMeld(vts(g), VOKEY);
-        return a ? a.order.map(t => t.id) : g;
-      });
+    const plan = res.plan && (res.plan.phase === 'opened' || res.plan.path === mode) ? res.plan : null;
+    const ordered = g => { const a = Rules.analyzeMeld(vts(g), VOKEY); return a ? a.order.map(t => t.id) : g; };
+    let groups, planExtra = [], planDiscard = null;
+    if (plan) {
+      // Bitiş planı: açılacak/indirilecek gruplar, çiftler; işlenecek taşlar ayrı bir grupta
+      if (mode === 'seri') {
+        groups = (plan.open || []).concat(plan.lay || []).filter(g => g.every(inHand)).map(ordered);
+        groups = groups.concat((plan.pairs || []).filter(g => g.every(inHand)));
+      } else {
+        groups = (plan.open || []).concat(plan.pairs || []).filter(g => g.every(inHand));
+        if (!groups.length) groups = res.pairs.filter(g => g.every(inHand)); // çift indirilemese bile çiftleri bir araya diz
+      }
+      const tl = (plan.swaps || []).map(w => w.tile).concat((plan.attach || []).map(a => a.tile)).filter(inHand);
+      if (tl.length) planExtra = [tl];
+      planDiscard = plan.discard != null && inHand(plan.discard) ? plan.discard : null;
+    } else if (mode === 'seri') {
+      groups = res.melds.filter(g => g.every(inHand)).map(ordered);
     } else {
       groups = res.pairs.filter(g => g.every(inHand));
     }
@@ -680,7 +691,12 @@ function autoArrange(mode, quiet, done) {
     // Amaca göre kalanları grupla: açtıysan masaya işlenebilenler bir arada (işle / at ayrımı net),
     // açmadıysan yarım perler (iki taşı hazır seriler/gruplar) ikişer ikişer — neye ihtiyacın olduğu görünsün
     let extra = [], loose = rest;
-    if (mode === 'seri') {
+    if (plan) {
+      const inExtra = new Set(planExtra.flat());
+      extra = planExtra;
+      loose = rest.filter(id => !inExtra.has(id) && id !== planDiscard);
+      if (planDiscard != null) loose.push(planDiscard); // atılacak taş en sonda
+    } else if (mode === 'seri') {
       const m = me();
       if (m.opened && S.melds.length) {
         const att = rest.filter(id => { const t = tileById(id); return !(Rules.isJoker(t, S.okey) && !flipped.has(id)) && S.melds.some(x => Rules.canAttach(x, t, S.okey)); });
@@ -721,7 +737,11 @@ function autoArrange(mode, quiet, done) {
     renderGame();
     if (!quiet) {
       const ev = evalRack();
-      if (!done) toast(mode === 'seri' ? `Seri: ${ev.score} puan` : `${ev.pairs.length} çift`);
+      if (!done) {
+        if (plan && plan.canFinish) toast('Bu turda bitirebilirsin: indir, işle, işaretli taşı at');
+        else if (plan && plan.toGo != null && (plan.phase === 'opened' || plan.path)) toast(`${mode === 'seri' ? 'Seri' : 'Çift'} planı: bitmeye ${plan.toGo} taş kaldı`);
+        else toast(mode === 'seri' ? `Seri: ${ev.score} puan` : `${ev.pairs.length} çift`);
+      }
     }
     if (done) done();
   });

@@ -142,7 +142,7 @@ function afterOpen(hand, ctx) {
 }
 
 // Ana giriş. flippedIds: oyuncunun ters çevirdiği (joker) okeylerin id'leri (varsayılan: elindeki bütün okeyler)
-function finishPlan(g, seat, flippedIds) {
+function finishPlan(g, seat, flippedIds, forcePath) {
   const me = g.seats[seat];
   const okey = g.okey;
   const hand = me.hand;
@@ -166,6 +166,7 @@ function finishPlan(g, seat, flippedIds) {
   const vts = hand.map(t => solverTile(t, okey, flip));
   const byId = new Map(hand.map(t => [t.id, t]));
   const options = [];
+  let potScore = 0, potPairs = 0;
 
   // seri yolu
   {
@@ -178,6 +179,7 @@ function finishPlan(g, seat, flippedIds) {
     while (groups.length > 1 && usedN >= hand.length) usedN -= groups.shift().length;
     const score = groups.reduce((a, x) => a + sc(x), 0);
     const potential = { score: sol.score };
+    potScore = sol.score;
     if (score >= bar.per && usedN < hand.length) {
       const openIds = new Set(groups.flat().map(t => t.id));
       const rest = hand.filter(t => !openIds.has(t.id));
@@ -189,6 +191,7 @@ function finishPlan(g, seat, flippedIds) {
   // çift yolu
   {
     const prs = Bot.findPairs(vts, V);
+    potPairs = prs.length;
     const maxPairs = Math.floor((hand.length - 1) / 2);
     if (prs.length >= bar.cift && maxPairs >= bar.cift) {
       const take = prs.slice(0, maxPairs).map(p => p.map(t => byId.get(t.id)));
@@ -200,10 +203,10 @@ function finishPlan(g, seat, flippedIds) {
     } else options.push({ path: 'cift', infeasible: true, potential: { pairs: prs.length } });
   }
 
-  const feasible = options.filter(o => !o.infeasible);
+  const feasible = options.filter(o => !o.infeasible && (!forcePath || o.path === forcePath));
   if (!feasible.length) {
     return { phase: 'closed', path: null, open: [], lay: [], pairs: [], swaps: [], attach: [], rest: hand.map(t => t.id), discard: null, toGo: null, canFinish: false,
-      potential: { score: options[0].potential.score, pairs: options[1].potential.pairs }, barrier: bar };
+      potential: { score: potScore, pairs: potPairs }, barrier: bar };
   }
   // Çift açmak puanı ikiye katlar: eşit uzaklıkta seri tercih edilir
   feasible.sort((a, b) => (a.post.rest.length - b.post.rest.length) || (a.path === 'seri' ? -1 : 1));

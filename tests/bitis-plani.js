@@ -88,6 +88,15 @@ const ids = a => a.flat();
   const p = finishPlan(g, 0);
   check('Açılamıyorsa yol yok, potansiyel döner', p.path === null && p.potential && p.canFinish === false);
 }
+// 7b) İstenen yol uygulanamıyorsa (7 çift varken seri istenirse) hata vermez, yol yok döner
+{
+  const hand = [T(0, 2), T(0, 2), T(1, 5), T(1, 5), T(2, 7), T(2, 7), T(3, 9), T(3, 9), T(0, 11), T(0, 11), T(1, 4), T(1, 4), T(2, 12), T(2, 12), T(3, 1), T(1, 13), T(2, 3), T(3, 6), T(0, 8), T(1, 10), T(2, 6), T(1, 2)];
+  let p, err = null;
+  try { p = finishPlan(setup(hand), 0, undefined, 'seri'); } catch (e) { err = e.message; }
+  check('Uygulanamayan yol istenirse hata vermez', !err && p.path === null && p.potential.pairs >= 5, err || JSON.stringify(p && p.potential));
+  const q = finishPlan(setup(hand.slice()), 0, undefined, 'cift');
+  check('7 çiftli elde çift yolu istenince çift planı döner', q.path === 'cift' && q.pairCount >= 5, String(q.pairCount));
+}
 // 8) Atılacak taş işlek olmamalı
 {
   const g = setup([T(0, 9), T(1, 2), T(2, 12), T(0, 3)], { opened: true, melds: [run(0, 4, 8)] });
