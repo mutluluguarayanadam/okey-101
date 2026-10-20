@@ -771,7 +771,7 @@ function refreshAdvice() {
     if (advPending === k) advPending = null;
     if (!S || S.lobby) return;
     adv = { key: k, data: d || null };
-    if (advKey() === k) renderActions();
+    if (advKey() === k) { renderActions(); renderMe(); }
   });
 }
 function adviceHint() {
@@ -1322,6 +1322,13 @@ const choiceOf = o => (o.kind === 'swap' ? { kind: 'swap' } : { kind: 'add', sid
 
 // Bitiş planı özeti (sadece sıra sendeyken): önerilen yol ve bitmeye kalan taş
 function planBadge() {
+  // Çekme aşamasında: soldaki taşı almak bitmeye katkı sağlıyor mu (telefonda ipucu satırı gizli olduğu için rozette)
+  if (myTurn() && S.phase === 'draw') {
+    const d = adv.key === advKey() ? adv.data : null;
+    if (!d) return '';
+    if (d.opened) return d.use ? `<span class="lead" title="Soldaki taş işine yarıyor">Soldaki taş: AL ✓${d.canFinish ? ' · bitirirsin' : ` · ${d.toGo} taş kalır`}</span>` : '<span title="Soldaki taş işine yaramıyor">Soldaki taş işe yaramaz → yığından çek</span>';
+    return d.canOpenWith ? `<span class="lead" title="Alırsan o taşla açman gerekir">Soldakiyle ${d.path === 'seri' ? 'seri' : 'çift'} açarsın · AL ✓</span>` : '<span title="Alırsan açamazsan 101 ceza">Soldaki taşla açamazsın (101 riski)</span>';
+  }
   const pl = pot.key === potKey() ? pot.plan : null;
   if (!pl || !playing() || (!pl.path && pl.phase !== 'opened')) return '';
   const yol = pl.phase === 'opened' ? '' : (pl.path === 'seri' ? 'Seri ' : 'Çift ') + '· ';
