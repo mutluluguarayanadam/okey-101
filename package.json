@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node tests/bot-simulasyonu.js && node tests/kural-denetimi.js",
+    "test": "node tests/bot-simulasyonu.js && node tests/kural-denetimi.js && node tests/bitis-plani.js",
     "test:ui": "node tests/arayuz-denetimi.js"
   },
   "engines": {
