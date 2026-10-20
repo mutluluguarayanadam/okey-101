@@ -272,7 +272,6 @@ const X = {
   hold1: +(process.env.X_HOLD1 ?? 0),      // açtığı turda sadece açılışı indir, kalan perleri sonraki turda (ölçümde zarar, kapalı)
   tilesPick: +(process.env.X_TILESPICK ?? 0), // açtıktan sonra yandan, elde kalan taşı azaltan taşı al
   pairPick: +(process.env.X_PAIRPICK ?? 0),   // açmadan önce yandan, çiftle açmayı mümkün kılan taşı al
-  plan: +(process.env.X_PLAN ?? 0),         // açtıktan sonra indirme/işleme ortak bitiş planıyla (plan.js)
   pairAll: +(process.env.X_PAIRALL ?? 0), // çift açılabiliyorsa hemen aç (worthIt koşulunu atla)
   keepJ: +(process.env.X_KEEPJ ?? 1),      // okeyi sakla: okeysiz açabiliyorsan öyle aç, okeyi risk artınca ya da bitişte kullan
 };
@@ -489,29 +488,6 @@ function layAndAttach(g, seat, reserve) {
   }
 }
 
-// Ortak bitiş planını (plan.js) uygular. reserve: elde saklanan okey (plan onsuz hesaplanır).
-// Plan tek geçişte işleme zinciri kurar; yine de değişiklik kalmayana kadar en çok 3 kez tekrarlanır.
-function planLay(g, seat, reserve, jokersFlipped) {
-  const { finishPlan } = require('./plan');
-  const me = g.seats[seat];
-  for (let round = 0; round < 3; round++) {
-    let gv = g;
-    if (reserve) {
-      gv = Object.create(g);
-      gv.seats = g.seats.map((s, i) => (i === seat ? Object.assign(Object.create(s), { hand: s.hand.filter(t => t !== reserve) }) : s));
-    }
-    const flipped = jokersFlipped ? me.hand.filter(t => R.isJoker(t, g.okey)).map(t => t.id) : [];
-    let plan;
-    try { plan = finishPlan(gv, seat, flipped); } catch (e) { return; }
-    let did = 0;
-    for (const w of plan.swaps) if (g.addToMeld(seat, w.tile, w.meld, { kind: 'swap' }).ok) did++;
-    for (const grp of plan.lay) if (g.layMeld(seat, grp).ok) did++;
-    for (const pr of plan.pairs) if (g.layMeld(seat, pr).ok) did++;
-    for (const a of plan.attach) if (g.addToMeld(seat, a.tile, a.meld, { kind: 'add', side: a.side }).ok) did++;
-    if (!did) return;
-  }
-}
-
 function play(g, seat) {
   if (g.turn !== seat || g.phase !== 'play') return;
   const me = g.seats[seat];
@@ -530,10 +506,9 @@ function play(g, seat) {
   if (me.opened) {
     // Okeyle bitirme fırsatı: bir okeyi sona sakla, kalan her şeyi yerleştirebiliyorsak okeyi atarak bitir (puanlar x2)
     const jok = me.hand.find(t => R.isJoker(t, ok));
-    const lay = (reserve, jf) => (X.plan ? planLay(g, seat, reserve, jf) : layAndAttach(g, seat, reserve));
-    if (jok) lay(jok, false);
+    if (jok) layAndAttach(g, seat, jok);
     const useJ = X.keepJ !== 1 || riskHigh(g, seat) || me.hand.length <= 4 || finishable(g, seat).can; // keepJ=2: sadece açarken sakla
-    if (!(jok && me.hand.length === 1 && me.hand[0] === jok) && (!jok || useJ)) lay(null, true);
+    if (!(jok && me.hand.length === 1 && me.hand[0] === jok) && (!jok || useJ)) layAndAttach(g, seat, null);
   }
 
   const t = chooseDiscard(g, seat);
