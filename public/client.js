@@ -756,6 +756,32 @@ function potKey() {
   return S.handIndex + '|' + S.hand.map(t => t.id).sort((a, b) => a - b).join(',') + '|' + [...flipped].sort((a, b) => a - b).join(',') +
     '|' + (m && m.opened ? 'o' + S.melds.map(x => x.id + ':' + x.tiles.length).join(',') : 'c');
 }
+// Soldaki taşı almak bitmeye katkı sağlıyor mu? (çekme aşamasında bir kez sorulur)
+let adv = { key: null, data: null }, advPending = null;
+function advKey() {
+  const prev = S.players[(S.you + 3) % 4];
+  return S.handIndex + '|' + (prev.discardTop ? prev.discardTop.id : '-') + '|' + S.hand.map(t => t.id).sort((a, b) => a - b).join(',') + '|' + [...flipped].sort((a, b) => a - b).join(',');
+}
+function refreshAdvice() {
+  if (!S || S.lobby || !myTurn() || S.phase !== 'draw') return;
+  const k = advKey();
+  if (k === adv.key || k === advPending) return;
+  advPending = k;
+  socket.emit('advice', { flipped: [...flipped] }, d => {
+    if (advPending === k) advPending = null;
+    if (!S || S.lobby) return;
+    adv = { key: k, data: d || null };
+    if (advKey() === k) renderActions();
+  });
+}
+function adviceHint() {
+  const d = adv.key === advKey() ? adv.data : null;
+  if (!d) return '';
+  const fin = d.canFinish ? 'bu turda bitirebilirsin' : `bitmeye ${d.toGo} taş kalır`;
+  if (d.opened) return d.use ? `💡 Soldaki taşı al: işine yarıyor (${fin}).` : '💡 Soldaki taş işine yaramıyor: yığından çek.';
+  if (d.canOpenWith) return `💡 Soldaki taşla ${d.path === 'seri' ? 'seri' : 'çift'} açabilirsin (${fin}). Alırsan açman gerekir, yoksa 101 ceza.`;
+  return '💡 Soldaki taşla açamazsın: alırsan 101 ceza riski var. Yığından çek.';
+}
 function refreshPotential() {
   if (!S || S.lobby || !S.hand) return;
   const opened = me().opened;
@@ -872,6 +898,7 @@ function renderGame() {
   renderActions();
   renderModal();
   refreshPotential();
+  refreshAdvice();
   tickTimer();
   runAnimations(before, fresh_state);
 }
@@ -1448,7 +1475,7 @@ function renderActions() {
   else if (playing() && sel != null) hint = me().opened && selIsler ? 'Parlayan pere dokunarak işle (+ işaretli yere eklenir). Okeyi alabileceğin perde okey parlar.' : 'Sağ alttaki alana dokunarak at ya da boş bir yuvaya taşı.';
   else if (playing() && evalRack().tooLong.length) hint = 'Seri en fazla 5 taşla açılır: uzun seriyi araya boşluk koyarak ikiye böl (örn. 1-2-3-4 ve 5-6-7).';
   else if (playing()) hint = 'Perlerin arasında bir boşluk bırak, puanın otomatik hesaplanır. Taşı sürükleyip sağ alt köşeye bırakarak at.';
-  else if (myTurn()) hint = 'Ortadaki yığından ya da sol alttaki taştan çek: dokun ya da ıstakada istediğin yuvaya sürükle.';
+  else if (myTurn()) hint = adviceHint() || 'Ortadaki yığından ya da sol alttaki taştan çek: dokun ya da ıstakada istediğin yuvaya sürükle.';
   $('#hint').textContent = hint;
 }
 

@@ -2,7 +2,7 @@
 // Çalıştırma: node tests/bitis-plani.js
 const { Game } = require('../game.js');
 const R = require('../public/rules.js');
-const { finishPlan } = require('../plan.js');
+const { finishPlan, takeAdvice } = require('../plan.js');
 let fails = 0;
 const check = (name, ok, extra = '') => { if (!ok) fails++; console.log(`${ok ? 'TAMAM' : 'HATA '}  ${name}${extra ? '  (' + extra + ')' : ''}`); };
 
@@ -117,6 +117,22 @@ const ids = a => a.flat();
   g.seats[0].openedAt = g.turnCount;
   const p = finishPlan(g, 0);
   check('"Açtığı turda işleme yok" ise işleme planlanmaz', p.attach.length === 0 && p.swaps.length === 0);
+}
+// 10b) Yandan alma önerisi
+{
+  const mk = (hand, top, extra = {}) => { const g = setup(hand, extra); g.seats[3].discards = [top]; return g; };
+  const run48 = run(0, 4, 8);
+  const a = takeAdvice(mk([T(0, 2), T(1, 5), T(2, 12), T(3, 3)], T(0, 9), { opened: true, melds: [run48] }), 0);
+  check('Açmış oyuncu: masadaki seriye işlenen taş işe yarar', a && a.use === true, JSON.stringify(a));
+  const b = takeAdvice(mk([T(0, 2), T(1, 5), T(2, 12), T(3, 3)], T(2, 1), { opened: true, melds: [run48] }), 0);
+  check('Açmış oyuncu: işe yaramayan taş işaretlenir', b && b.use === false);
+  // açmamış: bu taşla seri tamamlanıp barajı geçiliyorsa alınabilir; geçmiyorsa uyarılır
+  const hand = [...run(0, 9, 13).tiles.slice(0, 4), ...run(2, 9, 13).tiles, T(1, 1), T(3, 3), T(1, 5), T(0, 2), T(3, 7), T(1, 8), T(2, 4), T(3, 1), T(0, 6), T(1, 12), T(3, 8), T(2, 1)];
+  const c = takeAdvice(mk(hand, T(0, 13)), 0);
+  check('Açmamış oyuncu: taşla açabiliyorsa alınabilir', c && c.canOpenWith === true && c.path === 'seri', JSON.stringify(c));
+  const d = takeAdvice(mk(hand, T(1, 2)), 0);
+  check('Açmamış oyuncu: taşla açamıyorsa uyarılır', d && d.canOpenWith === false, JSON.stringify(d));
+  check('Soldan atılmış taş yoksa öneri yok', takeAdvice(setup(hand), 0) === null);
 }
 // 11) Rastgele oyunlar: koltuk 0 her turda bitiş planını motora uygular; motor hiçbir hamleyi reddetmemeli
 {

@@ -142,10 +142,10 @@ function afterOpen(hand, ctx) {
 }
 
 // Ana giriş. flippedIds: oyuncunun ters çevirdiği (joker) okeylerin id'leri (varsayılan: elindeki bütün okeyler)
-function finishPlan(g, seat, flippedIds, forcePath) {
+function finishPlan(g, seat, flippedIds, forcePath, extraTile) {
   const me = g.seats[seat];
   const okey = g.okey;
-  const hand = me.hand;
+  const hand = extraTile ? me.hand.concat([extraTile]) : me.hand; // extraTile: yandan alınırsa eline gelecek taş
   const flip = new Set(flippedIds || hand.filter(t => R.isJoker(t, okey)).map(t => t.id));
   const base = () => ({ okey, flip: new Set(flip), melds: cloneMelds(g.melds), cnt: cloneCount(g.attachCount || {}) });
   const ciftArea = g.seats.some(s => s.openType === 'cift');
@@ -203,7 +203,10 @@ function finishPlan(g, seat, flippedIds, forcePath) {
     } else options.push({ path: 'cift', infeasible: true, potential: { pairs: prs.length } });
   }
 
-  const feasible = options.filter(o => !o.infeasible && (!forcePath || o.path === forcePath));
+  // Yandan alınan taşla açma zorunluluğu varsa (mustOpenWith) açış o taşı içermeli, yoksa o yol uygulanamaz
+  const must = g.mustOpenWith != null ? g.mustOpenWith : (extraTile ? extraTile.id : null);
+  const usesMust = o => must == null || o.open.flat().includes(must);
+  const feasible = options.filter(o => !o.infeasible && (!forcePath || o.path === forcePath) && usesMust(o));
   if (!feasible.length) {
     return { phase: 'closed', path: null, open: [], lay: [], pairs: [], swaps: [], attach: [], rest: hand.map(t => t.id), discard: null, toGo: null, canFinish: false,
       potential: { score: potScore, pairs: potPairs }, barrier: bar };
@@ -219,4 +222,28 @@ function finishPlan(g, seat, flippedIds, forcePath) {
   return finish(plan, {});
 }
 
-module.exports = { finishPlan, afterOpen };
+// Soldaki oyuncunun attığı taşı almak bitmeye katkı sağlıyor mu? (sıra çekme aşamasındayken)
+function takeAdvice(g, seat, flippedIds) {
+  const me = g.seats[seat];
+  const prev = g.seats[(seat + 3) % 4];
+  const top = prev.discards[prev.discards.length - 1];
+  if (!top) return null;
+  const withIds = flippedIds || me.hand.filter(t => R.isJoker(t, g.okey)).map(t => t.id);
+  const flip = R.isJoker(top, g.okey) ? withIds.concat([top.id]) : withIds;
+  const base = finishPlan(g, seat, withIds);
+  const plan = finishPlan(g, seat, flip, undefined, top);
+  const used = new Set([].concat(plan.open || [], plan.lay || [], plan.pairs || []).flat());
+  (plan.attach || []).forEach(a => used.add(a.tile));
+  (plan.swaps || []).forEach(w => used.add(w.tile));
+  const use = used.has(top.id);
+  const opened = me.opened;
+  // Açmadıysan yandan alınan taşla açmak zorundasın (açamazsan geri verip 101 ceza)
+  const canOpenWith = opened ? true : !!(plan.path && (plan.open || []).flat().includes(top.id));
+  return {
+    tile: top.id, use, opened, canOpenWith,
+    path: plan.path, toGo: plan.toGo, canFinish: plan.canFinish,
+    baseToGo: base.toGo, // yığından çekersen eldeki durum (çekeceğin taş bilinmez)
+  };
+}
+
+module.exports = { finishPlan, afterOpen, takeAdvice };
