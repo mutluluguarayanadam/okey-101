@@ -833,7 +833,13 @@ function evalRack() {
     }
   }
   const tooLong = rackGroups().filter(g => g.length > Rules.MAX_OPEN_RUN && Rules.isTooLongRun(vts(g), VOKEY));
-  return { melds, pairs, tooLong, score: melds.reduce((s, m) => s + m.score, 0) };
+  // Hepsi perdeyse atacak taş kalmaz: açış puanı bir taş (ya da küçük per) dışarıda bırakılmış hâlle hesaplanır
+  let score = melds.reduce((s, m) => s + m.score, 0);
+  if (S.hand && melds.reduce((s, m) => s + m.ids.length, 0) >= S.hand.length) {
+    const fit = Rules.fitGroups(melds.map(m => vts(m.ids)), S.hand.length, VOKEY, 0, true);
+    score = fit.reduce((a, g) => a + ((Rules.analyzeMeld(g, VOKEY) || { score: 0 }).score), 0);
+  }
+  return { melds, pairs, tooLong, score };
 }
 
 function moveTile(id, target) {
