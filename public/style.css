@@ -1172,3 +1172,13 @@ body.ingame { overscroll-behavior: none; }
   .short .rackline .handscore { font-size: 10px; padding: 1px 8px; top: -8px; line-height: 1.25; gap: 0 8px; flex-wrap: nowrap; left: 50%; right: auto; transform: translateX(-50%); max-width: calc(100% - 16px); }
   .short .rackline .handscore b { font-size: 11px; }
 }
+
+/* Bekleme odası: kısa ekranda (telefon yatay) düğmeler hep görünsün; masa küçülür */
+.roomactions { display: flex; flex-direction: column; gap: 8px; }
+@media (max-height: 460px) {
+  .roomactions { position: sticky; bottom: 0; z-index: 5; flex-direction: row; gap: 8px; padding: 8px 0 max(6px, env(safe-area-inset-bottom)); background: linear-gradient(rgba(10,32,58,0), rgba(10,32,58,.96) 28%); }
+  .roomactions button { flex: 1; margin: 0; }
+  .minitable { height: 150px; margin: 6px 0 4px; }
+  .minitable .felt { inset: 30px 70px; }
+  #waiting .settings { margin: 4px 0 8px; }
+}
