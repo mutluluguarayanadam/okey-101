@@ -1182,3 +1182,7 @@ body.ingame { overscroll-behavior: none; }
   .minitable .felt { inset: 30px 70px; }
   #waiting .settings { margin: 4px 0 8px; }
 }
+
+/* Rozetteki küçük "Geri koy" düğmesi (yandan taş alınmışken) */
+.handscore .badgebtn { pointer-events: auto; border: 0; border-radius: 8px; padding: 0 8px; font-size: inherit; font-weight: 800; background: #e7832a; color: #2b1606; box-shadow: 0 1px 0 #a3560f; cursor: pointer; }
+.short .rackline .handscore { pointer-events: auto; }

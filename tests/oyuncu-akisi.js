@@ -16,7 +16,7 @@ const Bot = require('../bot.js');
 
 const N = +(process.env.N || 60);
 const SEED = +(process.env.SEED || 1);
-const [VW, VH] = (process.env.VP || '852x276').split('x').map(Number);
+const { VW, VH, yeniSayfa, etiket } = require('./yardimci/cihaz.js');
 const OKEY = { c: 3, v: 13 };
 const HAND_FILE = path.join(os.tmpdir(), `okey-el-${process.pid}.json`);
 
@@ -147,10 +147,9 @@ function report(sc, ok, msg, extra) {
 
 async function runScenario(browser, PORT, sc, getErr) {
   fs.writeFileSync(HAND_FILE, JSON.stringify({ id: sc.id, hand: sc.hand }));
-  const ctx = await browser.newContext({ viewport: { width: VW, height: VH }, hasTouch: true, isMobile: true });
-  const p = await ctx.newPage();
-  const errs = [];
-  p.on('pageerror', e => errs.push(e.message));
+  const p = await yeniSayfa(browser);
+  const ctx = p.context();
+  const errs = p.errs;
   const exp = expectation(sc);
   const desc = `el=${sc.hand.join(' ')} | altSeri=${exp.lowerSeri} üstSeri=${exp.upper} altÇift=${exp.lowerPairs} üstÇift=${exp.upperPairs}`;
   const errStart = getErr().length;
@@ -242,6 +241,6 @@ async function runScenario(browser, PORT, sc, getErr) {
   srv.kill();
   try { fs.unlinkSync(HAND_FILE); } catch { /* yok */ }
   const ok = results.filter(Boolean).length;
-  console.log(`\n${ok}/${results.length} kontrol geçti (${N} senaryo, tohum ${SEED}, ekran ${VW}x${VH})`);
+  console.log(`\n${ok}/${results.length} kontrol geçti (${N} senaryo, tohum ${SEED}, ${etiket})`);
   process.exit(ok === results.length ? 0 : 1);
 })();

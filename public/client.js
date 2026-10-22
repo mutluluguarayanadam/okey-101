@@ -387,6 +387,8 @@ function placeControls(short) {
     $('#menuPop').classList.add('hidden');
   }
 }
+// Rozetteki "Geri koy": kısa ekranda sağ sütun kaydırma gerektirdiğinde yandan alınan taşı geri koymanın kolay yolu
+$('#handScore').addEventListener('click', e => { if (e.target.closest('[data-undo]') && S && !S.lobby) act({ type: 'undoTake' }); });
 $('#bigSeri').onclick = () => S && !S.lobby && autoArrange('seri');
 $('#bigCift').onclick = () => S && !S.lobby && autoArrange('cift');
 $('#btnMenu').onclick = e => { e.stopPropagation(); $('#menuPop').classList.toggle('hidden'); };
@@ -1332,9 +1334,10 @@ function planBadge() {
   const pl = pot.key === potKey() ? pot.plan : null;
   // Yandan taş alındı: o taşla açılabiliyor mu, açış kaç puan / çift
   if (pl && playing() && S.mustOpenWith != null && !me().opened) {
-    if (!pl.path) return '<span class="warnb" title="Açamazsan taşı geri koyup 101 ceza yazılır">Bu taşla açılamıyor → Geri koy</span>';
+    const geri = '<button type="button" class="badgebtn" data-undo="1" title="Yandan aldığın taşı geri koy: 101 ceza">Geri koy</button>';
+    if (!pl.path) return `<span class="warnb" title="Açamazsan taşı geri koyup 101 ceza yazılır">Bu taşla açılamıyor</span>${geri}`;
     const kac = pl.path === 'seri' ? `Seri ${pl.openScore} puan` : `${pl.pairCount} çift`;
-    return `<span class="lead" title="Aldığın taşla en iyi açış">Aldığın taşla ${kac} açarsın · ${pl.canFinish ? 'bitirirsin' : `${pl.toGo} taş kalır`}</span>`;
+    return `<span class="lead" title="Aldığın taşla en iyi açış">Aldığın taşla ${kac} açarsın · ${pl.canFinish ? 'bitirirsin' : `${pl.toGo} taş kalır`}</span>${geri}`;
   }
   if (!pl || !playing() || (!pl.path && pl.phase !== 'opened')) return '';
   const yol = pl.phase === 'opened' ? '' : (pl.path === 'seri' ? 'Seri ' : 'Çift ') + '· ';

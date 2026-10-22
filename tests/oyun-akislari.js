@@ -8,7 +8,7 @@ let chromium;
 try { ({ chromium } = require('playwright')); } catch {
   try { ({ chromium } = require('/opt/node22/lib/node_modules/playwright')); } catch { console.error('playwright bulunamadı'); process.exit(2); }
 }
-const [VW, VH] = (process.env.VP || '852x276').split('x').map(Number);
+const { VW, VH, yeniSayfa, etiket } = require('./yardimci/cihaz.js');
 const HAND_FILE = path.join(os.tmpdir(), `okey-akis-${process.pid}.json`);
 const results = [];
 const check = (name, ok, extra = '') => { results.push(!!ok); console.log(`${ok ? 'TAMAM' : 'HATA '}  ${name}${extra ? '  (' + extra + ')' : ''}`); };
@@ -21,12 +21,7 @@ async function startServer() {
   await new Promise((res, rej) => { const t = setTimeout(() => rej(new Error('sunucu açılmadı')), 10000); srv.stdout.on('data', d => { if (String(d).includes('http://localhost')) { clearTimeout(t); res(); } }); });
   return { srv, PORT, getErr: () => err };
 }
-const newPage = async (browser, mobile = true) => {
-  const ctx = await browser.newContext({ viewport: { width: VW, height: VH }, hasTouch: mobile, isMobile: mobile });
-  const p = await ctx.newPage();
-  p.errs = []; p.on('pageerror', e => p.errs.push(e.message));
-  return p;
-};
+const newPage = browser => yeniSayfa(browser);
 const myTurn = p => p.waitForFunction(() => document.body.classList.contains('myturn'), null, { timeout: 15000 });
 const hands = (hand, extra = {}) => fs.writeFileSync(HAND_FILE, JSON.stringify({ id: 'a' + Math.random(), hand, ...extra }));
 
@@ -207,6 +202,6 @@ const hands = (hand, extra = {}) => fs.writeFileSync(HAND_FILE, JSON.stringify({
   srv.kill();
   try { fs.unlinkSync(HAND_FILE); } catch { /* yok */ }
   const ok = results.filter(Boolean).length;
-  console.log(`\n${ok}/${results.length} kontrol geçti (ekran ${VW}x${VH})`);
+  console.log(`\n${ok}/${results.length} kontrol geçti (${etiket})`);
   process.exit(ok === results.length ? 0 : 1);
 })();
