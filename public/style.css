@@ -1147,3 +1147,28 @@ body.ingame { overscroll-behavior: none; }
 }
 .iosshare::before { content: ''; position: absolute; left: 50%; top: -9px; width: 2px; height: 14px; margin-left: -1px; background: currentColor; }
 .iosshare::after { content: ''; position: absolute; left: 50%; top: -9px; width: 6px; height: 6px; margin-left: -4px; border-left: 2px solid currentColor; border-top: 2px solid currentColor; transform: rotate(45deg); }
+
+/* ===== Kısa ekranda (iPhone Safari araç çubuklarıyla ~270px) sağ işlem sütunu: düğmeler yan sütuna taşıp gizlenmesin =====
+   Eskiden flex-wrap sütuna sığmayan düğmeleri görünmez ikinci bir sütuna atıyordu (Seri aç / Çift aç kayboluyordu). */
+.short .table > .actions { flex-wrap: nowrap; justify-content: flex-start; overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; scrollbar-width: none; }
+.short .table > .actions::-webkit-scrollbar { display: none; }
+.short .table > .actions > button { flex: 0 0 auto; }
+/* az yer varsa ortala, çoksa (taşıyorsa) üstten başla: otomatik kenar boşluğu taşmayı yutmaz */
+.short .table > .actions > :first-child { margin-top: auto; }
+.short .table > .actions > :last-child { margin-bottom: auto; }
+/* açma düğmeleri her zaman en üstte (yandan taş alınca "Geri koy" onların önüne geçmesin) */
+.short .table > .actions [data-act="openSeri"] { order: -2; }
+.short .table > .actions [data-act="openCift"] { order: -1; }
+@media (max-height: 330px) {
+  .short .table > .actions { gap: 3px; }
+  .short .table > .actions button { font-size: 10px; line-height: 1.05; padding: 3px 2px; border-radius: 7px; }
+  .short .table > .actions .icon-btn { padding: 2px; font-size: 12px; }
+  .short .table > .actions button.warn small { display: none; }
+}
+
+.handscore .warnb { color: #ffb36b; }
+/* Kısa ekranda el gücü rozeti yığın/gösterge taşlarının üstüne binmesin: küçük, ıstakanın üst kenarında */
+@media (max-height: 330px) {
+  .short .rackline .handscore { font-size: 10px; padding: 1px 8px; top: -8px; line-height: 1.25; gap: 0 8px; flex-wrap: nowrap; left: 50%; right: auto; transform: translateX(-50%); max-width: calc(100% - 16px); }
+  .short .rackline .handscore b { font-size: 11px; }
+}

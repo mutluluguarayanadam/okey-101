@@ -61,6 +61,15 @@ Not: Ücretsiz sunucu 15 dakika kimse bağlanmazsa uyur; ilk girişte açılmas�
 - Kırmızı çerçeveli taşlar işlek taştır (atarsan 101 ceza).
 - Telefonda yatay kullanım ve tam ekran (⛶) önerilir.
 
+## Bitiş planı ve yandan taş önerileri
+- **Seri diz / Çift diz** artık bir bitiş planı kurar (`plan.js`): açılacak ve indirilecek perler/çiftler, masadaki perlere işlenecek taşlar (bir yana turda en fazla 2), alınabilecek okey ve atılacak taş. İşlenecek taşlar ıstakada ayrı bir grupta, atılacak taş en sonda durur.
+- **Rozet (ıstakanın üstü):** Sıra sendeyken önerilen yolu ve "kaç taş kaldı" bilgisini gösterir. Çekme aşamasında soldaki taşın işine yarayıp yaramadığını, o taşla açılıp açılamadığını söyler.
+- **Yandan taş alınca:** Aldığın taşı içeren en iyi açış hesaplanır ("Aldığın taşla Seri 118 puan açarsın"); açılamıyorsa "Bu taşla açılamıyor → Geri koy" yazar. Seri aç / Çift aç bu taşı zorunlu içerir.
+- Kısa ekranlarda (iPhone Safari araç çubuklarıyla ~270 px) sağ düğme sütunu kaydırılabilir ve açma düğmeleri her zaman en üsttedir.
+
+## Testler
+- `npm test`: bot simülasyonu, rastgele hamlelerle kural denetimi, bitiş planı testleri. `npm run test:ui`: masaüstü, telefon ve iPhone (kısa ekran dahil) arayüz denetimi.
+
 ## Kurallar
 - 106 taş. Göstergenin bir üstü okeydir (gösterge 13 ise okey 1). Sahte okey, okeyin yerine geçer.
 - Başlayan oyuncu 22, diğerleri 21 taş alır. Oyun saat yönünün tersine döner, soldakinin attığını alabilirsin.

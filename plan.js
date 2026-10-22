@@ -26,6 +26,27 @@ function meldsFromSolve(sol, byId) {
   return sol.melds.map(m => m.map(t => byId.get(t.id)));
 }
 
+// Verilen taşı (yandan alınan) mutlaka içeren en iyi per kümesi. obj: 'tiles' (en çok taş) ya da 'score' (en yüksek puan).
+// Taşı içeren her olası pere göre kalan taşlar çözülür; taş okeyse (joker) normal çözüm döner.
+function solveForced(vts, id, obj) {
+  const items = vts.map(t => ({ t, e: R.eff(t, V) }));
+  const A = items.find(x => x.t.id === id);
+  if (!A || A.e.joker) return Bot.solve(vts, V, 150000, obj);
+  let best = null;
+  const sc = m => (R.analyzeMeld(m, V) || { score: 0 }).score;
+  for (const cand of Bot.candidatesWith(A, items)) {
+    const used = new Set(cand.items.map(x => x.t.id));
+    const rest = vts.filter(t => !used.has(t.id));
+    const sub = Bot.solve(rest, V, 12000, obj);
+    const melds = [cand.items.map(x => x.t)].concat(sub.melds);
+    const score = melds.reduce((a, m) => a + sc(m), 0);
+    const tiles = melds.reduce((a, m) => a + m.length, 0);
+    const better = !best || (obj === 'tiles' ? (tiles > best.tiles || (tiles === best.tiles && score > best.score)) : score > best.score);
+    if (better) best = { score, tiles, melds };
+  }
+  return best || { score: 0, melds: [] };
+}
+
 // Açıkken: bu eldeki tüm taşlarla yapılacak hamleler
 //  hand: gerçek taşlar; ctx: { okey, melds (kopya), cnt (kopya), openType, ciftArea, canAttach, flip }
 function afterOpen(hand, ctx) {
@@ -45,13 +66,7 @@ function afterOpen(hand, ctx) {
   // 1) Elde per kuracak taşlar (seri açan için)
   let layGroups = [];
   if (ctx.openType === 'per') {
-    layGroups = solveRest();
-    // hepsini indirirsek atacak taş kalmaz: en küçük perden vazgeç
-    let usedN = layGroups.reduce((a, g) => a + g.length, 0);
-    while (layGroups.length && usedN >= rest.length) {
-      layGroups.sort((a, b) => (R.analyzeMeld(a, V) || { score: 0 }).score - (R.analyzeMeld(b, V) || { score: 0 }).score);
-      usedN -= layGroups.shift().length;
-    }
+    layGroups = R.fitGroups(solveRest(), rest.length, V, 0, true); // hepsini indirirsek atacak taş kalmaz: tek taş ayır ya da küçük perden vazgeç
   }
   const inLay = new Set(layGroups.flat().map(t => t.id));
 
@@ -76,9 +91,7 @@ function afterOpen(hand, ctx) {
     }
     if (swapped && ctx.openType === 'per') {
       // okey eline geçti: perler yeniden hesaplanır
-      layGroups = solveRest();
-      let usedN = layGroups.reduce((a, g) => a + g.length, 0);
-      while (layGroups.length && usedN >= rest.length) { usedN -= layGroups.pop().length; }
+      layGroups = R.fitGroups(solveRest(), rest.length, V, 0, true);
       inLay.clear(); layGroups.flat().forEach(t => inLay.add(t.id));
     }
   }
@@ -170,13 +183,14 @@ function finishPlan(g, seat, flippedIds, forcePath, extraTile) {
 
   // seri yolu
   {
-    let sol = Bot.solve(vts, V, 150000, 'tiles');
-    if (sol.score < bar.per) { const alt = Bot.solve(vts, V, 150000, 'score'); if (alt.score > sol.score) sol = alt; }
-    let groups = meldsFromSolve(sol, byId);
-    let usedN = groups.reduce((a, x) => a + x.length, 0);
+    const mustId = g.mustOpenWith != null ? g.mustOpenWith : (extraTile ? extraTile.id : null);
+    const slv = obj => (mustId != null ? solveForced(vts, mustId, obj) : Bot.solve(vts, V, 150000, obj));
+    let sol = slv('tiles');
+    if (sol.score < bar.per) { const alt = slv('score'); if (alt.score > sol.score) sol = alt; }
     const sc = x => (R.analyzeMeld(x, V) || { score: 0 }).score;
-    groups.sort((a, b) => sc(a) - sc(b));
-    while (groups.length > 1 && usedN >= hand.length) usedN -= groups.shift().length;
+    // atmak için en az bir taş kalmalı: hepsi perdeyse bir perden tek taş ayrılır (elden bitiş), olmuyorsa küçük per çıkarılır
+    let groups = R.fitGroups(meldsFromSolve(sol, byId), hand.length, V, bar.per);
+    let usedN = groups.reduce((a, x) => a + x.length, 0);
     const score = groups.reduce((a, x) => a + sc(x), 0);
     const potential = { score: sol.score };
     potScore = sol.score;
@@ -191,6 +205,8 @@ function finishPlan(g, seat, flippedIds, forcePath, extraTile) {
   // çift yolu
   {
     const prs = Bot.findPairs(vts, V);
+    const mustP = g.mustOpenWith != null ? g.mustOpenWith : (extraTile ? extraTile.id : null);
+    if (mustP != null) prs.sort((a, b) => (b.some(t => t.id === mustP) ? 1 : 0) - (a.some(t => t.id === mustP) ? 1 : 0));
     potPairs = prs.length;
     const maxPairs = Math.floor((hand.length - 1) / 2);
     if (prs.length >= bar.cift && maxPairs >= bar.cift) {

@@ -121,11 +121,19 @@ async function run(browser, label, vp, mobile, ios) {
     check('Yardım oyun güncellemesiyle kapanmaz', await p.evaluate(() => !document.querySelector('#modal').classList.contains('hidden')));
     await p.click('#iosOk');
   }
+  // Sağ sütundaki açma düğmeleri gerçekten dokunulabilir olmalı (kısa ekranda yan sütuna taşıp gizlenmesinler)
+  const touch = await p.evaluate(() => ['openSeri', 'openCift'].map(a => {
+    const b = document.querySelector(`[data-act="${a}"]`), r = b.getBoundingClientRect();
+    const h = document.elementFromPoint((r.left + r.right) / 2, (r.top + r.bottom) / 2);
+    return !!h && (h === b || b.contains(h));
+  }));
+  check('Seri aç ve Çift aç düğmeleri dokunulabilir', touch.every(Boolean), JSON.stringify(touch));
   // Seri açtıktan sonra "Çift indir" görünür (masada çift yokken de), dokununca nedenini söyler
   await p.evaluate(() => { const m = S.players[S.you]; m.opened = true; m.openType = 'per'; m.openScore = 105; S.turn = S.you; S.phase = 'play'; renderGame(); });
   const ci = await p.evaluate(() => { const b = document.querySelector('[data-act="openCift"]'), r = b.getBoundingClientRect(); return { shown: getComputedStyle(b).display !== 'none' && r.height > 0 && r.bottom <= innerHeight && r.right <= innerWidth, dis: b.disabled }; });
   check('Seri açtıktan sonra "Çift indir" görünür', ci.shown, JSON.stringify(ci));
-  const cur = await p.evaluate(() => { document.querySelector('[data-act="openCift"]').click(); return document.querySelector('#toast').textContent; });
+  // durum ve tıklama aynı senkron adımda: sunucudan gelen bir güncelleme sahte durumu ezmesin
+  const cur = await p.evaluate(() => { const m = S.players[S.you]; m.opened = true; m.openType = 'per'; S.turn = S.you; S.phase = 'play'; S.mustOpenWith = null; renderGame(); document.querySelector('[data-act="openCift"]').click(); return document.querySelector('#toast').textContent; });
   check('"Çift indir" indirilemiyorsa nedenini söyler', /çift/i.test(cur), cur);
   const overflow = await p.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
   check('Sayfa yana taşmıyor', !overflow);
@@ -140,6 +148,8 @@ async function run(browser, label, vp, mobile, ios) {
     await run(browser, 'Masaüstü', { width: 1920, height: 940 }, false);
     await run(browser, 'Telefon', { width: 844, height: 390 }, true);
     await run(browser, 'iPhone Safari', { width: 750, height: 340 }, true, true);
+    await run(browser, 'iPhone Safari araçlı (kısa)', { width: 852, height: 276 }, true, true);
+    await run(browser, 'iPhone SE Safari', { width: 667, height: 250 }, true, true);
   } catch (e) { console.error(e); results.push(false); }
   await browser.close();
   srv.kill();

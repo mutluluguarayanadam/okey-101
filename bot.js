@@ -582,4 +582,4 @@ function keepIds(g, seat) {
   return solve(me.hand, g.okey, 20000, 'tiles').melds.flat().map(t => t.id);
 }
 
-module.exports = { keepIds, hint, solve, suggest, findPairs, draw, play, fullTurn, timeoutTurn, fallback };
+module.exports = { keepIds, hint, solve, suggest, findPairs, candidatesWith, draw, play, fullTurn, timeoutTurn, fallback };

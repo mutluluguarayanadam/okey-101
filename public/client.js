@@ -771,7 +771,7 @@ function refreshAdvice() {
     if (advPending === k) advPending = null;
     if (!S || S.lobby) return;
     adv = { key: k, data: d || null };
-    if (advKey() === k) renderActions();
+    if (advKey() === k) { renderActions(); renderMe(); }
   });
 }
 function adviceHint() {
@@ -1322,7 +1322,20 @@ const choiceOf = o => (o.kind === 'swap' ? { kind: 'swap' } : { kind: 'add', sid
 
 // Bitiş planı özeti (sadece sıra sendeyken): önerilen yol ve bitmeye kalan taş
 function planBadge() {
+  // Çekme aşamasında: soldaki taşı almak bitmeye katkı sağlıyor mu (telefonda ipucu satırı gizli olduğu için rozette)
+  if (myTurn() && S.phase === 'draw') {
+    const d = adv.key === advKey() ? adv.data : null;
+    if (!d) return '';
+    if (d.opened) return d.use ? `<span class="lead" title="Soldaki taş işine yarıyor">Soldaki taş: AL ✓${d.canFinish ? ' · bitirirsin' : ` · ${d.toGo} taş kalır`}</span>` : '<span title="Soldaki taş işine yaramıyor">Soldaki taş işe yaramaz → yığından çek</span>';
+    return d.canOpenWith ? `<span class="lead" title="Alırsan o taşla açman gerekir">Soldakiyle ${d.path === 'seri' ? 'seri' : 'çift'} açarsın · AL ✓</span>` : '<span title="Alırsan açamazsan 101 ceza">Soldaki taşla açamazsın (101 riski)</span>';
+  }
   const pl = pot.key === potKey() ? pot.plan : null;
+  // Yandan taş alındı: o taşla açılabiliyor mu, açış kaç puan / çift
+  if (pl && playing() && S.mustOpenWith != null && !me().opened) {
+    if (!pl.path) return '<span class="warnb" title="Açamazsan taşı geri koyup 101 ceza yazılır">Bu taşla açılamıyor → Geri koy</span>';
+    const kac = pl.path === 'seri' ? `Seri ${pl.openScore} puan` : `${pl.pairCount} çift`;
+    return `<span class="lead" title="Aldığın taşla en iyi açış">Aldığın taşla ${kac} açarsın · ${pl.canFinish ? 'bitirirsin' : `${pl.toGo} taş kalır`}</span>`;
+  }
   if (!pl || !playing() || (!pl.path && pl.phase !== 'opened')) return '';
   const yol = pl.phase === 'opened' ? '' : (pl.path === 'seri' ? 'Seri ' : 'Çift ') + '· ';
   return `<span class="lead" title="Bu eldeki taşlarla açma, indirme ve işleme planı">${yol}${pl.canFinish ? 'Bitirebilirsin' : `<b>${pl.toGo}</b> taş kaldı`}</span>`;
@@ -1345,7 +1358,10 @@ function renderMe() {
     const lead = sOk !== cOk ? (sOk ? 's' : 'c') : (hp.score / b.per >= hp.pairs / b.cift ? 's' : 'c');
     hs.classList.toggle('ready', sOk || cOk);
     hs.title = 'Istakadaki dizilişten bağımsız: elindeki taşlarla kurulabilecek en iyi seri puanı ve çift sayısı. ▲ gitmen gereken yön.';
-    hs.innerHTML = `<span class="${lead === 's' ? 'lead' : ''}">Seri <b class="${sOk ? 'ok' : ''}">${hp.score}</b>/${b.per}</span><span class="${lead === 'c' ? 'lead' : ''}">Çift <b class="${cOk ? 'ok' : ''}">${hp.pairs}</b>/${b.cift}</span>` + planBadge();
+    // Yandan taş alındıysa önemli olan o taşla açış: puan/çift özeti yerine sadece onu göster (kısa ekranda sığsın)
+    const pb = planBadge();
+    const scoresHtml = `<span class="${lead === 's' ? 'lead' : ''}">Seri <b class="${sOk ? 'ok' : ''}">${hp.score}</b>/${b.per}</span><span class="${lead === 'c' ? 'lead' : ''}">Çift <b class="${cOk ? 'ok' : ''}">${hp.pairs}</b>/${b.cift}</span>`;
+    hs.innerHTML = (S.mustOpenWith != null && pb ? '' : scoresHtml) + pb;
   } else {
     // El sonunda yazılacak gibi: elde kalan her okey 101
     const left = S.hand.reduce((s, t) => s + Rules.tilePoints(t, S.okey), 0);
@@ -1563,15 +1579,21 @@ function layable(ev) {
 // Aç: ıstaka barajı geçecek gibi dizili değilse önce Seri/Çift diz yapılır, sonra önizleme açılır
 function openWith(mode) {
   const m = me(), ev = evalRack();
+  const must = !m.opened ? S.mustOpenWith : null; // yandan alınan taşla açma zorunluluğu
+  const usesMust = e => must == null || (mode === 'seri' ? e.melds : e.pairs).some(g => g.ids.includes(must));
   if (m.opened && mode === 'cift') {
     const ciftArea = S.players.some(p => p.openType === 'cift');
     if (m.openType !== 'cift' && !ciftArea) return toast('Masada çift açan olmadığı için çift indiremezsin');
     if (!ev.pairs.length) return toast('Istakada indirilecek çift yok');
   }
   if (m.opened && mode === 'seri' && !ev.melds.length) return toast('Istakada indirilecek per yok (aralarına boşluk bırakarak diz)');
-  const enough = m.opened || (mode === 'seri' ? ev.score >= S.barrier.per : ev.pairs.length >= S.barrier.cift);
+  const enough = m.opened || ((mode === 'seri' ? ev.score >= S.barrier.per : ev.pairs.length >= S.barrier.cift) && usesMust(ev));
   if (enough) doOpen(mode);
-  else autoArrange(mode, false, () => doOpen(mode));
+  else autoArrange(mode, false, () => {
+    // Plan yandan alınan taşı içeren açışı kurar; kuramıyorsa açılamaz
+    if (!usesMust(evalRack())) return toast('Yandan aldığın taşla açılamıyor: taşı geri koy (101 ceza)');
+    doOpen(mode);
+  });
 }
 
 function doOpen(mode) {
@@ -1579,8 +1601,13 @@ function doOpen(mode) {
   const ev = evalRack();
   if (!mode) mode = !m.opened ? (ev.score >= S.barrier.per ? 'seri' : 'cift') : (m.openType === 'cift' ? 'cift' : 'seri');
   const pairMode = mode === 'cift';
-  const groups = pairMode ? ev.pairs.map(p => p.ids) : ev.melds.map(g => g.ids);
+  let groups = pairMode ? ev.pairs.map(p => p.ids) : ev.melds.map(g => g.ids);
   if (!groups.length) return;
+  // Bütün taşlar perdeyse atacak taş kalmaz: bir perden tek taş ayır (elden bitiş) ya da küçük per/çifti dışarıda bırak
+  if (groups.reduce((a, g) => a + g.length, 0) >= S.hand.length) {
+    if (pairMode) { groups = groups.slice(0, Math.max(1, Math.floor((S.hand.length - 1) / 2))); }
+    else groups = Rules.fitGroups(groups.map(g => vts(g)), S.hand.length, VOKEY, m.opened ? 0 : S.barrier.per).map(g => g.map(t => t.id));
+  }
   const picked = groups.map(() => true);
   const draw = () => {
     const chosen = groups.filter((_, i) => picked[i]);
