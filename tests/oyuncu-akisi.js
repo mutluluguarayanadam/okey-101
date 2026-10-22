@@ -1,6 +1,6 @@
 // Oyuncu akışı denetimi: yapısı bilinen (çok per, çiftler, okeyli, hepsi perde, rastgele) eller üretir, gerçek tarayıcıda
 // aç / indir / işle / at adımlarını yürütür. Beklenen sonuç bağımsız bir hesaptan bilinir; arayüz uyuşmazsa HATA yazar.
-// Çalıştırma: node tests/oyuncu-akisi.js   (N=60 senaryo sayısı, SEED=1 tohum, VP=852x276 ekran boyutu)
+// Çalıştırma: node tests/oyuncu-akisi.js   (N=60 senaryo sayısı, SEED=1 tohum, VP=852x276 ekran boyutu, ONLY=23 yalnızca o senaryo)
 const { spawn } = require('child_process');
 const fs = require('fs');
 const os = require('os');
@@ -236,7 +236,7 @@ async function runScenario(browser, PORT, sc, getErr) {
   const { srv, PORT, getErr } = await startServer();
   const browser = await chromium.launch();
   try {
-    for (let i = 0; i < N; i++) await runScenario(browser, PORT, genScenario(i), getErr);
+    for (let i = 0; i < N; i++) { if (process.env.ONLY && +process.env.ONLY !== i) continue; await runScenario(browser, PORT, genScenario(i), getErr); }
   } catch (e) { console.error(e); results.push(false); }
   await browser.close();
   srv.kill();

@@ -1460,8 +1460,9 @@ function renderActions() {
     os.classList.remove('hidden');
     oc.classList.remove('hidden');
   } else {
-    const nm = m.openType === 'per' ? ev.melds.length : 0;
-    const np = m.openType === 'cift' || ciftArea ? ev.pairs.length : 0;
+    // Atmak için elde en az bir taş kalmalı: bu kurala göre gerçekten indirilebilecek per/çift sayısı
+    const nm = m.openType === 'per' ? Rules.fitGroups(ev.melds.map(g => vts(g.ids)), S.hand.length, VOKEY, 0, true).length : 0;
+    const np = m.openType === 'cift' || ciftArea ? Math.min(ev.pairs.length, Math.floor((S.hand.length - 1) / 2)) : 0;
     sReady = nm > 0;
     cReady = np > 0;
     os.textContent = nm ? `Seri indir (${nm})` : 'Seri indir';
@@ -1587,6 +1588,7 @@ function openWith(mode) {
     if (!ev.pairs.length) return toast('Istakada indirilecek çift yok');
   }
   if (m.opened && mode === 'seri' && !ev.melds.length) return toast('Istakada indirilecek per yok (aralarına boşluk bırakarak diz)');
+  if (m.opened && S.hand.length < (mode === 'seri' ? 4 : 3)) return toast('Atmak için elinde bir taş kalmalı: bu taşları indiremezsin, birini at');
   const enough = m.opened || ((mode === 'seri' ? ev.score >= S.barrier.per : ev.pairs.length >= S.barrier.cift) && usesMust(ev));
   if (enough) doOpen(mode);
   else autoArrange(mode, false, () => {
