@@ -134,6 +134,23 @@ const ids = a => a.flat();
   check('Açmamış oyuncu: taşla açamıyorsa uyarılır', d && d.canOpenWith === false, JSON.stringify(d));
   check('Soldan atılmış taş yoksa öneri yok', takeAdvice(setup(hand), 0) === null);
 }
+// 10c) Yandan alınan taşı kullanmak zorunlu: en iyi çözüm o taşı dışarıda bırakıyorsa taşı içeren çözüm aranır
+{
+  const r8 = T(0, 8);
+  const hand = [...run(0, 9, 13).tiles, ...run(2, 9, 13).tiles, r8, T(1, 1), T(3, 3), T(1, 5), T(0, 2), T(3, 7), T(1, 3), T(2, 4), T(3, 1), T(1, 6), T(1, 12), T(3, 8), T(2, 1)];
+  const g = setup(hand);
+  g.mustOpenWith = r8.id;
+  const p = finishPlan(g, 0);
+  check('Zorunlu taşla açış: kırmızı 8 açışa dahil edilir', p.path === 'seri' && p.open.flat().includes(r8.id) && p.openScore >= 101, JSON.stringify({ path: p.path, score: p.openScore }));
+  const r = g.open(0, p.open);
+  check('Plan motorda kabul edilir (yandan alınan taşla açma)', !r.err, r.err || '');
+  // taşla açılamıyorsa yol yok
+  const bad = T(1, 2);
+  const g2 = setup([...run(0, 9, 13).tiles, ...run(2, 9, 13).tiles, bad, T(1, 1), T(3, 3), T(1, 5), T(0, 2), T(3, 7), T(1, 8), T(2, 4), T(3, 1), T(0, 6), T(1, 12), T(3, 8), T(2, 1)]);
+  g2.mustOpenWith = bad.id;
+  const q = finishPlan(g2, 0);
+  check('Zorunlu taşla açılamıyorsa plan yol önermez', q.path === null, String(q.path));
+}
 // 11) Rastgele oyunlar: koltuk 0 her turda bitiş planını motora uygular; motor hiçbir hamleyi reddetmemeli
 {
   const Bot = require('../bot.js');
