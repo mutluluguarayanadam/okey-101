@@ -1186,3 +1186,8 @@ body.ingame { overscroll-behavior: none; }
 /* Rozetteki küçük "Geri koy" düğmesi (yandan taş alınmışken) */
 .handscore .badgebtn { pointer-events: auto; border: 0; border-radius: 8px; padding: 0 8px; font-size: inherit; font-weight: 800; background: #e7832a; color: #2b1606; box-shadow: 0 1px 0 #a3560f; cursor: pointer; }
 .short .rackline .handscore { pointer-events: auto; }
+
+/* Bekleme odası düğmeleri tüm yüksekliklerde altta sabit (masaüstünde de ayarlar uzun olunca başlat düğmesi görünsün) */
+@media (max-height: 900px) {
+  .roomactions { position: sticky; bottom: 0; z-index: 5; padding: 8px 0 max(6px, env(safe-area-inset-bottom)); background: linear-gradient(rgba(10,32,58,0), rgba(10,32,58,.96) 28%); }
+}

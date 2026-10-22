@@ -97,7 +97,12 @@ const hands = (hand, extra = {}) => fs.writeFileSync(HAND_FILE, JSON.stringify({
       await p.evaluate(() => act({ type: 'drawDiscard' }));
       await p.waitForFunction(() => S.mustOpenWith != null, null, { timeout: 5000 });
       await p.waitForTimeout(700);
-      const u = await p.evaluate(() => { const b = document.querySelector('[data-act="undo"]'), r = b.getBoundingClientRect(); const h = document.elementFromPoint((r.left + r.right) / 2, (r.top + r.bottom) / 2); return { shown: getComputedStyle(b).display !== 'none' && r.height > 0, touchable: !!h && (h === b || b.contains(h)), badge: document.querySelector('#handScore').innerText.replace(/\n/g, ' | ') }; });
+      const u = await p.evaluate(() => {
+        const hit = b => { const r = b.getBoundingClientRect(); const h = document.elementFromPoint((r.left + r.right) / 2, (r.top + r.bottom) / 2); return !!h && (h === b || b.contains(h)); };
+        const b = document.querySelector('[data-act="undo"]'), bb = document.querySelector('#handScore [data-undo]');
+        // Geri koy iki yerde olabilir: sağ düğme sütunu ya da rozetteki küçük düğme (çok kısa ekranlarda sütun kaydırılır)
+        return { shown: getComputedStyle(b).display !== 'none' && b.getBoundingClientRect().height > 0, touchable: hit(b) || (!!bb && hit(bb)), badge: document.querySelector('#handScore').innerText.replace(/\n/g, ' | ') };
+      });
       check('"Geri koy" düğmesi görünüyor ve dokunulabiliyor', u.shown && u.touchable, JSON.stringify(u));
       check('Rozet bu taşla açılamadığını söylüyor', /açılamıyor|Geri koy|Seri \d+ puan|çift açarsın/.test(u.badge), u.badge);
       await p.evaluate(() => document.querySelector('[data-act="undo"]').click());
