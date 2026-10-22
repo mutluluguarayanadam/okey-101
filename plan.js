@@ -191,9 +191,16 @@ function finishPlan(g, seat, flippedIds, forcePath, extraTile) {
     // atmak için en az bir taş kalmalı: hepsi perdeyse bir perden tek taş ayrılır (elden bitiş), olmuyorsa küçük per çıkarılır
     let groups = R.fitGroups(meldsFromSolve(sol, byId), hand.length, V, bar.per);
     let usedN = groups.reduce((a, x) => a + x.length, 0);
-    const score = groups.reduce((a, x) => a + sc(x), 0);
-    const potential = { score: sol.score };
-    potScore = sol.score;
+    let score = groups.reduce((a, x) => a + sc(x), 0);
+    // Elde hiç yük taş kalmıyorsa (hepsi perde) atacak taş için bir taş dışarıda kalmalı: her taşı çıkarıp en iyi puanı ara
+    if (score < bar.per && mustId == null && sol.melds.reduce((a, m) => a + m.length, 0) >= hand.length) {
+      for (const t of vts) {
+        const alt = Bot.solve(vts.filter(x => x !== t), V, 40000, 'score');
+        if (alt.score > score) { score = alt.score; groups = R.fitGroups(meldsFromSolve(alt, byId), hand.length, V, 0); usedN = groups.reduce((a, x) => a + x.length, 0); }
+      }
+    }
+    const potential = { score };
+    potScore = score; // rozet: atmak için bir taş kalacak şekilde gerçekten kurulabilecek en iyi puan
     if (score >= bar.per && usedN < hand.length) {
       const openIds = new Set(groups.flat().map(t => t.id));
       const rest = hand.filter(t => !openIds.has(t.id));
@@ -222,6 +229,7 @@ function finishPlan(g, seat, flippedIds, forcePath, extraTile) {
   // Yandan alınan taşla açma zorunluluğu varsa (mustOpenWith) açış o taşı içermeli, yoksa o yol uygulanamaz
   const must = g.mustOpenWith != null ? g.mustOpenWith : (extraTile ? extraTile.id : null);
   const usesMust = o => must == null || o.open.flat().includes(must);
+  const seriScoreNow = potScore;
   const feasible = options.filter(o => !o.infeasible && (!forcePath || o.path === forcePath) && usesMust(o));
   if (!feasible.length) {
     return { phase: 'closed', path: null, open: [], lay: [], pairs: [], swaps: [], attach: [], rest: hand.map(t => t.id), discard: null, toGo: null, canFinish: false,
@@ -231,7 +239,7 @@ function finishPlan(g, seat, flippedIds, forcePath, extraTile) {
   feasible.sort((a, b) => (a.post.rest.length - b.post.rest.length) || (a.path === 'seri' ? -1 : 1));
   const best = feasible[0];
   const plan = {
-    phase: 'closed', path: best.path, open: best.open, openScore: best.openScore, pairCount: best.pairCount,
+    phase: 'closed', path: best.path, open: best.open, openScore: best.openScore, pairCount: best.pairCount, seriScore: seriScoreNow, pairsAvail: potPairs,
     lay: best.post.lay, pairs: best.post.pairs, swaps: best.post.swaps, attach: best.post.attach, rest: best.post.rest, discard: best.post.discard,
     alternatives: feasible.slice(1).map(o => ({ path: o.path, toGo: Math.max(0, o.post.rest.length - 1) })),
   };
