@@ -1601,8 +1601,13 @@ function doOpen(mode) {
   const ev = evalRack();
   if (!mode) mode = !m.opened ? (ev.score >= S.barrier.per ? 'seri' : 'cift') : (m.openType === 'cift' ? 'cift' : 'seri');
   const pairMode = mode === 'cift';
-  const groups = pairMode ? ev.pairs.map(p => p.ids) : ev.melds.map(g => g.ids);
+  let groups = pairMode ? ev.pairs.map(p => p.ids) : ev.melds.map(g => g.ids);
   if (!groups.length) return;
+  // Bütün taşlar perdeyse atacak taş kalmaz: bir perden tek taş ayır (elden bitiş) ya da küçük per/çifti dışarıda bırak
+  if (groups.reduce((a, g) => a + g.length, 0) >= S.hand.length) {
+    if (pairMode) { groups = groups.slice(0, Math.max(1, Math.floor((S.hand.length - 1) / 2))); }
+    else groups = Rules.fitGroups(groups.map(g => vts(g)), S.hand.length, VOKEY, m.opened ? 0 : S.barrier.per).map(g => g.map(t => t.id));
+  }
   const picked = groups.map(() => true);
   const draw = () => {
     const chosen = groups.filter((_, i) => picked[i]);

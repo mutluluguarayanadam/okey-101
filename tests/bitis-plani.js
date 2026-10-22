@@ -151,6 +151,27 @@ const ids = a => a.flat();
   const q = finishPlan(g2, 0);
   check('Zorunlu taşla açılamıyorsa plan yol önermez', q.path === null, String(q.path));
 }
+// 10d) Elde 22 taşın hepsi perde: atacak taş kalsın diye bir perden tek taş ayrılır (elden bitiş), plan motorda kabul edilir
+{
+  const hand = [...run(0, 1, 5).tiles, ...run(2, 1, 5).tiles, ...run(3, 1, 5).tiles, ...run(1, 6, 9).tiles, T(0, 12), T(2, 12), T(1, 12)];
+  const g = setup(hand);
+  const p = finishPlan(g, 0);
+  const opened = p.open.flat().length;
+  check('Hepsi perdeyse 21 taşla açılır, 1 taş atılır', p.path === 'seri' && opened === 21 && p.rest.length === 1 && p.canFinish, JSON.stringify({ opened, rest: p.rest.length }));
+  check('Ayrılan taş atılacak taş olur', p.discard === p.rest[0]);
+  const r = g.open(0, p.open);
+  check('Motor bu açışı kabul eder (22 taştan 21)', !r.err, r.err || '');
+  // fitGroups: 4+ taşlı per yoksa en küçük per çıkarılır
+  const sets = [[T(0, 9), T(1, 9), T(2, 9)], [T(0, 10), T(1, 10), T(2, 10)], [T(0, 11), T(1, 11), T(2, 11)]];
+  const fit = R.fitGroups(sets, 9, OKEY, 0);
+  check('4+ taşlı per yoksa en küçük per dışarıda kalır', fit.length === 2 && fit.flat().length === 6, String(fit.length));
+  const big = () => [run(0, 9, 13).tiles, run(2, 9, 13).tiles, run(1, 6, 9).tiles];
+  const sc = gs => gs.reduce((x, g) => x + (R.analyzeMeld(g, OKEY) || { score: 0 }).score, 0);
+  const fit2 = R.fitGroups(big(), 14, OKEY, 100);
+  check('Baraj uygunsa tek taş ayrılır (13 taş indirilir)', fit2.flat().length === 13 && sc(fit2) >= 100, String(fit2.flat().length));
+  const fit3 = R.fitGroups(big(), 14, OKEY, 136);
+  check('Tek taş ayırmak barajın altına düşüyorsa küçük per çıkarılır', fit3.flat().length === 10 && sc(fit3) >= 110, String(fit3.flat().length));
+}
 // 11) Rastgele oyunlar: koltuk 0 her turda bitiş planını motora uygular; motor hiçbir hamleyi reddetmemeli
 {
   const Bot = require('../bot.js');

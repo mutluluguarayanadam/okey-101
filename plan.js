@@ -66,13 +66,7 @@ function afterOpen(hand, ctx) {
   // 1) Elde per kuracak taşlar (seri açan için)
   let layGroups = [];
   if (ctx.openType === 'per') {
-    layGroups = solveRest();
-    // hepsini indirirsek atacak taş kalmaz: en küçük perden vazgeç
-    let usedN = layGroups.reduce((a, g) => a + g.length, 0);
-    while (layGroups.length && usedN >= rest.length) {
-      layGroups.sort((a, b) => (R.analyzeMeld(a, V) || { score: 0 }).score - (R.analyzeMeld(b, V) || { score: 0 }).score);
-      usedN -= layGroups.shift().length;
-    }
+    layGroups = R.fitGroups(solveRest(), rest.length, V, 0, true); // hepsini indirirsek atacak taş kalmaz: tek taş ayır ya da küçük perden vazgeç
   }
   const inLay = new Set(layGroups.flat().map(t => t.id));
 
@@ -97,9 +91,7 @@ function afterOpen(hand, ctx) {
     }
     if (swapped && ctx.openType === 'per') {
       // okey eline geçti: perler yeniden hesaplanır
-      layGroups = solveRest();
-      let usedN = layGroups.reduce((a, g) => a + g.length, 0);
-      while (layGroups.length && usedN >= rest.length) { usedN -= layGroups.pop().length; }
+      layGroups = R.fitGroups(solveRest(), rest.length, V, 0, true);
       inLay.clear(); layGroups.flat().forEach(t => inLay.add(t.id));
     }
   }
@@ -195,11 +187,10 @@ function finishPlan(g, seat, flippedIds, forcePath, extraTile) {
     const slv = obj => (mustId != null ? solveForced(vts, mustId, obj) : Bot.solve(vts, V, 150000, obj));
     let sol = slv('tiles');
     if (sol.score < bar.per) { const alt = slv('score'); if (alt.score > sol.score) sol = alt; }
-    let groups = meldsFromSolve(sol, byId);
-    let usedN = groups.reduce((a, x) => a + x.length, 0);
     const sc = x => (R.analyzeMeld(x, V) || { score: 0 }).score;
-    groups.sort((a, b) => sc(a) - sc(b));
-    while (groups.length > 1 && usedN >= hand.length) usedN -= groups.shift().length;
+    // atmak için en az bir taş kalmalı: hepsi perdeyse bir perden tek taş ayrılır (elden bitiş), olmuyorsa küçük per çıkarılır
+    let groups = R.fitGroups(meldsFromSolve(sol, byId), hand.length, V, bar.per);
+    let usedN = groups.reduce((a, x) => a + x.length, 0);
     const score = groups.reduce((a, x) => a + sc(x), 0);
     const potential = { score: sol.score };
     potScore = sol.score;

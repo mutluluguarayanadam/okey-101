@@ -132,7 +132,8 @@ async function run(browser, label, vp, mobile, ios) {
   await p.evaluate(() => { const m = S.players[S.you]; m.opened = true; m.openType = 'per'; m.openScore = 105; S.turn = S.you; S.phase = 'play'; renderGame(); });
   const ci = await p.evaluate(() => { const b = document.querySelector('[data-act="openCift"]'), r = b.getBoundingClientRect(); return { shown: getComputedStyle(b).display !== 'none' && r.height > 0 && r.bottom <= innerHeight && r.right <= innerWidth, dis: b.disabled }; });
   check('Seri açtıktan sonra "Çift indir" görünür', ci.shown, JSON.stringify(ci));
-  const cur = await p.evaluate(() => { document.querySelector('[data-act="openCift"]').click(); return document.querySelector('#toast').textContent; });
+  // durum ve tıklama aynı senkron adımda: sunucudan gelen bir güncelleme sahte durumu ezmesin
+  const cur = await p.evaluate(() => { const m = S.players[S.you]; m.opened = true; m.openType = 'per'; S.turn = S.you; S.phase = 'play'; S.mustOpenWith = null; renderGame(); document.querySelector('[data-act="openCift"]').click(); return document.querySelector('#toast').textContent; });
   check('"Çift indir" indirilemiyorsa nedenini söyler', /çift/i.test(cur), cur);
   const overflow = await p.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
   check('Sayfa yana taşmıyor', !overflow);

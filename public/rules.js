@@ -174,7 +174,32 @@
     return !!attachInfo(meld, t, okey);
   }
 
-  const api = { COLOR_NAMES, okeyOf, isJoker, eff, tileName, tilePoints, runFromOrder, analyzeMeld, makeMeld, analyzePair, jokerSwapIndex, attachInfo, attachOptions, canAttach, isTooLongRun, MAX_OPEN_RUN, MAX_TABLE_RUN };
+  // Açarken / indirirken atmak için elde en az bir taş kalmalı. Bütün taşlar perdeyse: önce 4+ taşlı bir perden
+  // (seri ucundan ya da gruptan) tek taş ayırıp per geçerli kalıyorsa onu bırakır (o taş atılır, el biter);
+  // olmuyorsa en küçük perleri çıkarır. minScore: açış barajı (ayırma sonrası toplam puan bunun altına düşmemeli).
+  function fitGroups(groups, handLen, okey, minScore, allowEmpty) {
+    const sc = g => (analyzeMeld(g, okey) || { score: 0 }).score;
+    let gs = groups.map(g => g.slice());
+    let used = gs.reduce((a, g) => a + g.length, 0);
+    if (used < handLen) return gs;
+    const total = gs.reduce((a, g) => a + sc(g), 0);
+    let best = null;
+    gs.forEach((g, gi) => {
+      if (g.length < 4) return;
+      g.forEach((t, ti) => {
+        const cand = g.filter((_, k) => k !== ti);
+        if (!makeMeld(cand, okey)) return;
+        const loss = sc(g) - sc(cand);
+        if (total - loss >= (minScore || 0) && (!best || loss < best.loss)) best = { gi, ti, loss };
+      });
+    });
+    if (best) { gs[best.gi] = gs[best.gi].filter((_, k) => k !== best.ti); return gs; }
+    gs.sort((a, b) => sc(a) - sc(b));
+    while ((allowEmpty ? gs.length > 0 : gs.length > 1) && used >= handLen) used -= gs.shift().length; // allowEmpty: indirme (açık oyuncu) hiç per indirmeyebilir
+    return gs;
+  }
+
+  const api = { fitGroups, COLOR_NAMES, okeyOf, isJoker, eff, tileName, tilePoints, runFromOrder, analyzeMeld, makeMeld, analyzePair, jokerSwapIndex, attachInfo, attachOptions, canAttach, isTooLongRun, MAX_OPEN_RUN, MAX_TABLE_RUN };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.Rules = api;
 })(this);
