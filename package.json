@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "test": "node tests/bot-simulasyonu.js && node tests/kural-denetimi.js && node tests/bitis-plani.js",
-    "test:ui": "node tests/arayuz-denetimi.js"
+    "test:ui": "node tests/arayuz-denetimi.js",
+    "test:akis": "node tests/oyun-akislari.js && node tests/oyuncu-akisi.js"
   },
   "engines": {
     "node": ">=18"

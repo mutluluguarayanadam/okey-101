@@ -380,6 +380,11 @@ io.on('connection', socket => {
     try {
       const path = a && (a.path === 'seri' || a.path === 'cift') ? a.path : undefined;
       res.plan = finishPlan(room.game, socket.data.seat, flipped, path);
+      // Rozet/düğme puanı: atmak için bir taş kalacak şekilde gerçekten açılabilen en iyi puan (hepsi perdeyse düşebilir)
+      if (!path && res.plan && res.plan.phase === 'closed') {
+        const sp = res.plan.seriScore != null ? res.plan.seriScore : (res.plan.potential && res.plan.potential.score);
+        if (sp != null) res.score = Math.min(res.score, sp);
+      }
     } catch (e) { console.error('plan hesabı:', e); }
     cb(res);
   });

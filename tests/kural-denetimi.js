@@ -51,7 +51,7 @@ function wrap(g) {
 function chaos(g, seat) {
   const me = g.seats[seat];
   const pick = () => me.hand[rnd(me.hand.length)];
-  const k = rnd(6);
+  const k = rnd(7);
   try {
     if (k === 0) g.open(seat, [[pick().id, pick().id, pick().id]]);
     else if (k === 1) g.open(seat, [[pick().id, pick().id], [pick().id, pick().id]]);
@@ -59,6 +59,7 @@ function chaos(g, seat) {
     else if (k === 3 && g.melds.length) g.addToMeld(seat, pick().id, g.melds[rnd(g.melds.length)].id, rnd(2) ? { kind: 'add', side: rnd(2) ? 'left' : 'right' } : undefined);
     else if (k === 4) g.layMeld(seat, [pick().id, pick().id, pick().id, pick().id, pick().id, pick().id]); // 6 taş: seri olarak asla kabul edilmemeli
     else if (k === 5) g.undoTake(seat);
+    else if (k === 6) { const before = g.turnCount; Bot.timeoutTurn(g, seat); if (g.turn === seat && g.phase !== 'ended' && g.turnCount === before) bad('süre dolunca hamle yapılmadı (oyun takılırdı)'); } // süre dolması: çek + güvenli taş at
   } catch (e) { bad('istisna: ' + e.message); }
 }
 

@@ -387,6 +387,8 @@ function placeControls(short) {
     $('#menuPop').classList.add('hidden');
   }
 }
+// Rozetteki "Geri koy": kısa ekranda sağ sütun kaydırma gerektirdiğinde yandan alınan taşı geri koymanın kolay yolu
+$('#handScore').addEventListener('click', e => { if (e.target.closest('[data-undo]') && S && !S.lobby) act({ type: 'undoTake' }); });
 $('#bigSeri').onclick = () => S && !S.lobby && autoArrange('seri');
 $('#bigCift').onclick = () => S && !S.lobby && autoArrange('cift');
 $('#btnMenu').onclick = e => { e.stopPropagation(); $('#menuPop').classList.toggle('hidden'); };
@@ -831,7 +833,13 @@ function evalRack() {
     }
   }
   const tooLong = rackGroups().filter(g => g.length > Rules.MAX_OPEN_RUN && Rules.isTooLongRun(vts(g), VOKEY));
-  return { melds, pairs, tooLong, score: melds.reduce((s, m) => s + m.score, 0) };
+  // Hepsi perdeyse atacak taş kalmaz: açış puanı bir taş (ya da küçük per) dışarıda bırakılmış hâlle hesaplanır
+  let score = melds.reduce((s, m) => s + m.score, 0);
+  if (S.hand && melds.reduce((s, m) => s + m.ids.length, 0) >= S.hand.length) {
+    const fit = Rules.fitGroups(melds.map(m => vts(m.ids)), S.hand.length, VOKEY, 0, true);
+    score = fit.reduce((a, g) => a + ((Rules.analyzeMeld(g, VOKEY) || { score: 0 }).score), 0);
+  }
+  return { melds, pairs, tooLong, score };
 }
 
 function moveTile(id, target) {
@@ -1332,9 +1340,10 @@ function planBadge() {
   const pl = pot.key === potKey() ? pot.plan : null;
   // Yandan taş alındı: o taşla açılabiliyor mu, açış kaç puan / çift
   if (pl && playing() && S.mustOpenWith != null && !me().opened) {
-    if (!pl.path) return '<span class="warnb" title="Açamazsan taşı geri koyup 101 ceza yazılır">Bu taşla açılamıyor → Geri koy</span>';
+    const geri = '<button type="button" class="badgebtn" data-undo="1" title="Yandan aldığın taşı geri koy: 101 ceza">Geri koy</button>';
+    if (!pl.path) return `<span class="warnb" title="Açamazsan taşı geri koyup 101 ceza yazılır">Bu taşla açılamıyor</span>${geri}`;
     const kac = pl.path === 'seri' ? `Seri ${pl.openScore} puan` : `${pl.pairCount} çift`;
-    return `<span class="lead" title="Aldığın taşla en iyi açış">Aldığın taşla ${kac} açarsın · ${pl.canFinish ? 'bitirirsin' : `${pl.toGo} taş kalır`}</span>`;
+    return `<span class="lead" title="Aldığın taşla en iyi açış">Aldığın taşla ${kac} açarsın · ${pl.canFinish ? 'bitirirsin' : `${pl.toGo} taş kalır`}</span>${geri}`;
   }
   if (!pl || !playing() || (!pl.path && pl.phase !== 'opened')) return '';
   const yol = pl.phase === 'opened' ? '' : (pl.path === 'seri' ? 'Seri ' : 'Çift ') + '· ';
@@ -1460,8 +1469,9 @@ function renderActions() {
     os.classList.remove('hidden');
     oc.classList.remove('hidden');
   } else {
-    const nm = m.openType === 'per' ? ev.melds.length : 0;
-    const np = m.openType === 'cift' || ciftArea ? ev.pairs.length : 0;
+    // Atmak için elde en az bir taş kalmalı: bu kurala göre gerçekten indirilebilecek per/çift sayısı
+    const nm = m.openType === 'per' ? Rules.fitGroups(ev.melds.map(g => vts(g.ids)), S.hand.length, VOKEY, 0, true).length : 0;
+    const np = m.openType === 'cift' || ciftArea ? Math.min(ev.pairs.length, Math.floor((S.hand.length - 1) / 2)) : 0;
     sReady = nm > 0;
     cReady = np > 0;
     os.textContent = nm ? `Seri indir (${nm})` : 'Seri indir';
@@ -1587,6 +1597,7 @@ function openWith(mode) {
     if (!ev.pairs.length) return toast('Istakada indirilecek çift yok');
   }
   if (m.opened && mode === 'seri' && !ev.melds.length) return toast('Istakada indirilecek per yok (aralarına boşluk bırakarak diz)');
+  if (m.opened && S.hand.length < (mode === 'seri' ? 4 : 3)) return toast('Atmak için elinde bir taş kalmalı: bu taşları indiremezsin, birini at');
   const enough = m.opened || ((mode === 'seri' ? ev.score >= S.barrier.per : ev.pairs.length >= S.barrier.cift) && usesMust(ev));
   if (enough) doOpen(mode);
   else autoArrange(mode, false, () => {
